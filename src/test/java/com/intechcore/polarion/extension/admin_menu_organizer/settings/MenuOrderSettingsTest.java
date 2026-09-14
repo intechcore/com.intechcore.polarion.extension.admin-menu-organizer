@@ -13,6 +13,7 @@ import org.mockito.MockedStatic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +47,22 @@ class MenuOrderSettingsTest {
 
         assertTrue(restored.isFoldersAlphabetically());
         assertFalse(restored.isEntriesInDeclarationOrder());
+    }
+
+    /** The inherited equals compared only the name and the bundle timestamp, so different modes counted as equal. */
+    @Test
+    void comparesTheModes() {
+        MenuOrderSettingsModel first = new MenuOrderSettingsModel();
+        first.setFoldersAlphabetically(true);
+        MenuOrderSettingsModel same = new MenuOrderSettingsModel();
+        same.setFoldersAlphabetically(true);
+        MenuOrderSettingsModel other = new MenuOrderSettingsModel();
+        other.setFoldersAlphabetically(true);
+        other.setEntriesInDeclarationOrder(true);
+
+        assertEquals(first, same);
+        assertEquals(first.hashCode(), same.hashCode());
+        assertNotEquals(first, other);
     }
 
     @Test
