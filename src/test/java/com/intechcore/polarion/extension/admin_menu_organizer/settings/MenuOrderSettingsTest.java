@@ -21,6 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(CurrentContextExtension.class)
 @CurrentContextConfig("admin-menu-organizer")
@@ -104,6 +105,38 @@ class MenuOrderSettingsTest {
 
             verify(settingsService).save(any(ILocation.class), anyString());
             restorer.verify(() -> MenuOrderRestorer.apply(false, true));
+        }
+    }
+
+    /** A deleted Default reads as the defaults, so the live menu must return to Polarion's own order at once. */
+    @Test
+    void returnsToPolarionsOrderWhenTheDefaultSettingIsDeleted() {
+        SettingsService settingsService = mock(SettingsService.class);
+        MenuOrderSettings settings = new MenuOrderSettings(settingsService);
+
+        try (MockedStatic<MenuOrderRestorer> restorer = mockStatic(MenuOrderRestorer.class)) {
+            settings.delete("", SettingId.fromId(NamedSettings.DEFAULT_NAME));
+
+            verify(settingsService).delete(any(ILocation.class));
+            restorer.verify(() -> MenuOrderRestorer.apply(false, false));
+        }
+    }
+
+    /** Deleting a setting other than Default, such as one stored before names were checked, keeps what Default holds. */
+    @Test
+    void keepsTheStoredDefaultWhenAnotherSettingIsDeleted() {
+        SettingsService settingsService = mock(SettingsService.class);
+        MenuOrderSettingsModel stored = new MenuOrderSettingsModel();
+        stored.setName(NamedSettings.DEFAULT_NAME);
+        stored.setFoldersAlphabetically(true);
+        when(settingsService.read(any(ILocation.class), any())).thenReturn(stored.serialize());
+        MenuOrderSettings settings = new MenuOrderSettings(settingsService);
+
+        try (MockedStatic<MenuOrderRestorer> restorer = mockStatic(MenuOrderRestorer.class)) {
+            settings.delete("", SettingId.fromId("0b6a1c4e-other"));
+
+            verify(settingsService).delete(any(ILocation.class));
+            restorer.verify(() -> MenuOrderRestorer.apply(true, false));
         }
     }
 

@@ -49,6 +49,17 @@ public class MenuOrderSettings extends GenericNamedSettings<MenuOrderSettingsMod
         MenuOrderRestorer.apply(what.isFoldersAlphabetically(), what.isEntriesInDeclarationOrder());
     }
 
+    /**
+     * Applies what the Default setting holds once the delete is done, because generic has no hook after a
+     * delete. A deleted Default reads as the defaults, which return the menu to Polarion's own order.
+     */
+    @Override
+    public void delete(@NotNull String scope, @NotNull SettingId id) {
+        super.delete(scope, id);
+        MenuOrderSettingsModel stored = read(DEFAULT_SCOPE, SettingId.fromName(DEFAULT_NAME), null);
+        MenuOrderRestorer.apply(stored.isFoldersAlphabetically(), stored.isEntriesInDeclarationOrder());
+    }
+
     /** Reads the stored modes as the system user: at server start there is no user session to read them with. */
     public @NotNull MenuOrderSettingsModel readAsSystemUser() {
         return PlatformContext.getPlatform().lookupService(ISecurityService.class).doAsSystemUser(
