@@ -1,16 +1,21 @@
 package com.intechcore.polarion.extension.admin_menu_organizer;
 
+import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRestorer;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import org.mockito.MockedStatic;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -67,5 +72,35 @@ class AdminMenuOrganizerAppServletTest {
                 () -> servlet.service(request, response));
 
         assertEquals("Unsupported resource path", thrown.getMessage());
+    }
+
+    /**
+     * Outside a running Polarion there is no provider to reorder, and the servlet must still load.
+     */
+    @Test
+    void initRestoresTheMenuOrderWithoutThrowing() {
+        AdminMenuOrganizerAppServlet freshServlet = new AdminMenuOrganizerAppServlet();
+
+        Executable init = freshServlet::init;
+
+        assertDoesNotThrow(init);
+    }
+
+    /**
+     * The restorer references Polarion's administration classes, so it can fail to link on a future
+     * Polarion. That must never stop the extension's pages from loading.
+     */
+    @Test
+    void initSurvivesAFailingMenuOrderRestore() {
+        AdminMenuOrganizerAppServlet freshServlet = new AdminMenuOrganizerAppServlet();
+
+        try (MockedStatic<MenuOrderRestorer> restorer = mockStatic(MenuOrderRestorer.class)) {
+            restorer.when(MenuOrderRestorer::restoreDeclarationOrder)
+                    .thenThrow(new NoClassDefFoundError("com/polarion/alm/administration/web/server/AdministrationPageExtenderProvider"));
+
+            Executable init = freshServlet::init;
+
+            assertDoesNotThrow(init);
+        }
     }
 }

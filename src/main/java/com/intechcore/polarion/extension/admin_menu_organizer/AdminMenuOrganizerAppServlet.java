@@ -1,6 +1,9 @@
 package com.intechcore.polarion.extension.admin_menu_organizer;
 
 import ch.sbb.polarion.extension.generic.GenericUiServlet;
+import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRestorer;
+import com.polarion.core.util.logging.Logger;
+import jakarta.servlet.ServletException;
 
 import java.io.Serial;
 
@@ -9,13 +12,29 @@ import java.io.Serial;
  * extenders in hivemodule.xml open it as
  * {@code /polarion/admin-menu-organizer-app/ui/app/index.html?feature=<id>}; everything else about the
  * request handling comes from the generic servlet.
+ * <p>
+ * Its {@code init()} is also where the administration menu order is restored at server start, which is why
+ * {@code web.xml} declares this servlet with {@code load-on-startup}.
  */
 public class AdminMenuOrganizerAppServlet extends GenericUiServlet {
 
     @Serial
     private static final long serialVersionUID = 2741699502747533530L;
 
+    private static final Logger logger = Logger.getLogger(AdminMenuOrganizerAppServlet.class);
+
     public AdminMenuOrganizerAppServlet() {
         super("admin-menu-organizer-app");
+    }
+
+    @Override
+    public void init() throws ServletException {
+        super.init();
+        try {
+            MenuOrderRestorer.restoreDeclarationOrder();
+        } catch (Exception | LinkageError e) {
+            // The restorer guards its own body, but loading it can fail before that body runs.
+            logger.warn("Could not restore the administration menu order", e);
+        }
     }
 }
