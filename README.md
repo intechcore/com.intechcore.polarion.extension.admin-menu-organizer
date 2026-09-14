@@ -40,6 +40,8 @@ By default, the extension changes nothing. Open **Administration > Admin Menu Or
 
 Saving applies the order at once. Reload the Polarion page to see it. When both options are off again, the menu returns to the order that Polarion built at startup. The extension also applies the saved options each time Polarion starts.
 
+In a Polarion cluster, saving applies the order only on the node that handles the request. The other nodes apply it at their next restart.
+
 ## REST API
 
 This extension provides a REST API. Its OpenAPI specification can be obtained [here](docs/openapi.json).
