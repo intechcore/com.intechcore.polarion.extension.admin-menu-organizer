@@ -20,6 +20,15 @@
                   projectGroupScope="false"
                   repositoryScope="true"/>
 
+        <extender id="disclaimer"
+                  name="Usage Disclaimer"
+                  parentNodeId="admin-menu-organizer"
+                  iconUrl="/polarion/admin-menu-organizer-app/ui/images/menu/16x16/about.svg"
+                  pageUrl="/polarion/admin-menu-organizer-app/ui/app/index.html?feature=disclaimer&amp;embedded=true&amp;scope=$scope$"
+                  projectScope="false"
+                  projectGroupScope="false"
+                  repositoryScope="true"/>
+
         <extender id="rest-api"
                   name="REST API"
                   parentNodeId="admin-menu-organizer"

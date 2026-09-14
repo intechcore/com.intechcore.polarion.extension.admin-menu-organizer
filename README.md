@@ -1,5 +1,8 @@
 # Admin Menu Organizer for Polarion ALM
 
+> [!IMPORTANT]
+> Read the [Usage Disclaimer](DISCLAIMER.md) before you use this extension. Use it in production at your own risk.
+
 This Polarion extension keeps the entries of the Administration menu in a stable order.
 
 Polarion 2606 puts the administration menu entries of all extensions in a different order after each restart. This extension restores the order in which the extensions declare their entries.

@@ -55,6 +55,7 @@
         <web.app.name>${maven-jar-plugin.Extension-Context}</web.app.name>
 
         <markdown2html-maven-plugin.failOnError>true</markdown2html-maven-plugin.failOnError>
+        <markdown2html-maven-plugin.disclaimer.outputFile>${markdown2html-maven-plugin.extensionContextAdminHtml}/disclaimer.html</markdown2html-maven-plugin.disclaimer.outputFile>
     </properties>
 
     <dependencies>
@@ -83,6 +84,23 @@
             <plugin>
                 <groupId>ch.sbb.maven.plugins</groupId>
                 <artifactId>markdown2html-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>disclaimer.md-to-disclaimer.html</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>convert</goal>
+                        </goals>
+                        <configuration>
+                            <inputFile>${project.basedir}/DISCLAIMER.md</inputFile>
+                            <outputFile>${markdown2html-maven-plugin.disclaimer.outputFile}</outputFile>
+                            <failOnError>${markdown2html-maven-plugin.failOnError}</failOnError>
+                            <generateHeadingIds>${markdown2html-maven-plugin.generateHeadingIds}</generateHeadingIds>
+                            <relativeLinkPrefix>${project.scm.url}</relativeLinkPrefix>
+                            <openExternalLinksInNewTab>true</openExternalLinksInNewTab>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>

@@ -47,7 +47,7 @@ describe('App router', () => {
     const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.feature-list a')).map((a) =>
       a.getAttribute('href'),
     );
-    expect(links).toEqual(['?feature=about']);
+    expect(links).toEqual(['?feature=about', '?feature=disclaimer']);
   });
 
   it('pre-selects the scope from the ?scope param so feature links carry it', async () => {

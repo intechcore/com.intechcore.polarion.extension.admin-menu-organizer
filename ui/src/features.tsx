@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import About from './pages/About';
+import Disclaimer from './pages/Disclaimer';
 
 /**
  * A single navigable page of the app. The `id` is what appears in the URL as `?feature=<id>` and is
@@ -22,6 +23,12 @@ export const FEATURES: Feature[] = [
     label: 'About',
     description: 'Extension version and general information.',
     component: About,
+  },
+  {
+    id: 'disclaimer',
+    label: 'Usage Disclaimer',
+    description: 'The problem this extension shows, what it does, and the risks of using it.',
+    component: Disclaimer,
   },
 ];
 
