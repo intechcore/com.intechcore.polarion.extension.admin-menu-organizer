@@ -37,6 +37,10 @@ public class MenuOrderSettings extends GenericNamedSettings<MenuOrderSettingsMod
         if (!DEFAULT_SCOPE.equals(scope)) {
             throw new IllegalArgumentException("The administration menu order can only be set in the global scope");
         }
+        // Server start reads only the Default setting: any other name would apply now and be lost at the next restart.
+        if (!DEFAULT_NAME.equals(what.getName())) {
+            throw new IllegalArgumentException("The administration menu order can only be stored in the Default setting");
+        }
         return super.save(scope, id, what);
     }
 
