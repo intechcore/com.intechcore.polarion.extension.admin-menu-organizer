@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>ch.sbb.polarion.extensions</groupId>
+        <artifactId>ch.sbb.polarion.extension.generic</artifactId>
+        <version>16.1.0</version>
+    </parent>
+
+    <groupId>com.intechcore.polarion.extensions</groupId>
+    <artifactId>com.intechcore.polarion.extension.admin-menu-organizer</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Admin Menu Organizer for Polarion ALM</name>
+    <description>This Polarion extension keeps the entries of the Administration menu in a stable order</description>
+    <url>https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Intechcore GmbH</name>
+            <email>polarion@intechcore.com</email>
+            <organization>Intechcore GmbH</organization>
+            <organizationUrl>https://www.intechcore.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer.git</connection>
+        <developerConnection>scm:git:ssh://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer.git</developerConnection>
+        <url>https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/tree/main</url>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/issues</url>
+    </issueManagement>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+
+        <maven-jar-plugin.Extension-Context>admin-menu-organizer</maven-jar-plugin.Extension-Context>
+        <maven-jar-plugin.Automatic-Module-Name>com.intechcore.polarion.extension.admin_menu_organizer</maven-jar-plugin.Automatic-Module-Name>
+        <maven-jar-plugin.Discover-Base-Package>com.intechcore.polarion.extension.admin_menu_organizer</maven-jar-plugin.Discover-Base-Package>
+        <maven-jar-plugin.Configuration-Properties-Prefix>com.intechcore.polarion.extension.admin_menu_organizer</maven-jar-plugin.Configuration-Properties-Prefix>
+        <maven-jar-plugin.Bundle-Vendor>Intechcore GmbH</maven-jar-plugin.Bundle-Vendor>
+        <maven-jar-plugin.Support-Email>polarion@intechcore.com</maven-jar-plugin.Support-Email>
+
+        <web.app.name>${maven-jar-plugin.Extension-Context}</web.app.name>
+
+        <markdown2html-maven-plugin.failOnError>true</markdown2html-maven-plugin.failOnError>
+        <markdown2html-maven-plugin.disclaimer.outputFile>${markdown2html-maven-plugin.extensionContextAdminHtml}/disclaimer.html</markdown2html-maven-plugin.disclaimer.outputFile>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>ch.sbb.polarion.extensions</groupId>
+            <artifactId>ch.sbb.polarion.extension.generic.app</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.sbb.polarion.extensions</groupId>
+            <artifactId>ch.sbb.polarion.extension.generic.app</artifactId>
+            <version>${project.parent.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>ch.sbb.maven.plugins</groupId>
+                <artifactId>markdown2html-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>disclaimer.md-to-disclaimer.html</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>convert</goal>
+                        </goals>
+                        <configuration>
+                            <inputFile>${project.basedir}/DISCLAIMER.md</inputFile>
+                            <outputFile>${markdown2html-maven-plugin.disclaimer.outputFile}</outputFile>
+                            <failOnError>${markdown2html-maven-plugin.failOnError}</failOnError>
+                            <generateHeadingIds>${markdown2html-maven-plugin.generateHeadingIds}</generateHeadingIds>
+                            <relativeLinkPrefix>${project.scm.url}</relativeLinkPrefix>
+                            <openExternalLinksInNewTab>true</openExternalLinksInNewTab>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
+
+            <!-- Restates the parent's copy-vite-build execution with changeDetection, the documented
+                 replacement of the deprecated `overwrite` flag. Maven merges plugin configuration, so
+                 dropping one element takes overriding the block as a whole - keep the rest in step with
+                 the parent on every generic bump. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-vite-build</id>
+                        <configuration combine.self="override">
+                            <outputDirectory>${ui.destination.root}</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${ui.sources.root}/dist</directory>
+                                    <filtering>false</filtering>
+                                    <includes>
+                                        <include>**/*</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                            <changeDetection>always</changeDetection>
+                            <includeEmptyDirs>true</includeEmptyDirs>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Drops the parent's -Alog4j.graalvm.* options. They configure log4j-core's GraalVM
+                 processor, which this extension does not run, so javac reported them as unrecognized. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgs combine.self="override"/>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>io.github.grigoriev</groupId>
+                <artifactId>pre-commit-run-maven-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-maven-plugin-jakarta</artifactId>
+                <configuration>
+                    <outputFormat>JSON</outputFormat>
+                    <resourcePackages>
+                        <package>ch.sbb.polarion.extension.generic.rest.controller.info</package>
+                        <package>ch.sbb.polarion.extension.generic.rest.controller.settings</package>
+                        <package>ch.sbb.polarion.extension.generic.rest.model</package>
+                        <package>com.intechcore.polarion.extension.admin_menu_organizer.rest.controller</package>
+                    </resourcePackages>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
