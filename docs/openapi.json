@@ -5,6 +5,471 @@
     "version": "v1"
   },
   "paths": {
+    "/api/configuration-properties": {
+      "get": {
+        "operationId": "getConfigurationProperties",
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigurationPropertiesModel"
+                }
+              }
+            },
+            "description": "Configuration properties"
+          }
+        },
+        "summary": "Returns the extension configuration properties (active and obsolete)",
+        "tags": [
+          "Extension Information"
+        ]
+      }
+    },
+    "/api/configuration-status": {
+      "get": {
+        "operationId": "getConfigurationStatus",
+        "parameters": [
+          {
+            "description": "Scope to evaluate the status for, e.g. 'project/elibrary/'",
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConfigurationStatus"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Configuration status entries"
+          }
+        },
+        "summary": "Returns the extension configuration status for the given scope",
+        "tags": [
+          "Extension Information"
+        ]
+      }
+    },
+    "/api/context": {
+      "get": {
+        "operationId": "getContext",
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Context"
+                }
+              }
+            },
+            "description": "Context information"
+          }
+        },
+        "summary": "Returns basic context information of Polarion's extension",
+        "tags": [
+          "Extension Information"
+        ]
+      }
+    },
+    "/api/disclaimer": {
+      "get": {
+        "operationId": "getDisclaimer",
+        "responses": {
+          "default": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "HTML help article"
+          }
+        },
+        "summary": "Returns the build-generated DISCLAIMER help article shown on the Usage Disclaimer page",
+        "tags": [
+          "Extension Information"
+        ]
+      }
+    },
+    "/api/readme": {
+      "get": {
+        "operationId": "getDocumentation",
+        "responses": {
+          "default": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "HTML help article"
+          }
+        },
+        "summary": "Returns the build-generated README help article shown on the About page",
+        "tags": [
+          "Extension Information"
+        ]
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "operationId": "readFeaturesList",
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "List of supported features"
+          }
+        },
+        "summary": "Returns the complete list of all supported features",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/settings/{feature}/default-content": {
+      "get": {
+        "operationId": "getDefaultValues",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsModel"
+                }
+              }
+            },
+            "description": "Default values"
+          }
+        },
+        "summary": "Returns default values of specified setting",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/settings/{feature}/names": {
+      "get": {
+        "operationId": "readSettingNames",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingName"
+                }
+              }
+            },
+            "description": "List of setting names"
+          }
+        },
+        "summary": "Returns names of specified setting in specified scope (global or certain project)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/settings/{feature}/names/{name}": {
+      "delete": {
+        "operationId": "deleteSetting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Setting deleted successfully"
+          }
+        },
+        "summary": "Deletes specified setting by id and scope (global or certain project)",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "post": {
+        "operationId": "renameSetting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Setting name updated successfully"
+          }
+        },
+        "summary": "Updates name of specified named setting in specified scope (global or certain project)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/settings/{feature}/names/{name}/content": {
+      "get": {
+        "operationId": "readSetting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsModel"
+                }
+              }
+            },
+            "description": "Setting content"
+          }
+        },
+        "summary": "Returns values (content) of specified setting by its id, scope (global or certain project) and revision",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "put": {
+        "operationId": "saveSetting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Setting created/updated successfully"
+          }
+        },
+        "summary": "Creates or updates named setting in specified scope (global or certain project). Creation scenario will use default setting value if no body specified in the request.",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/settings/{feature}/names/{name}/revisions": {
+      "get": {
+        "operationId": "readRevisionsList",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Revision"
+                }
+              }
+            },
+            "description": "List of revisions"
+          }
+        },
+        "summary": "Returns revisions history of specified setting with specified id and in specified scope (global or certain project)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/user-guide": {
+      "get": {
+        "operationId": "getUserGuide",
+        "responses": {
+          "default": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "HTML help article"
+          }
+        },
+        "summary": "Returns the build-generated USER_GUIDE help article shown on the User Guide page",
+        "tags": [
+          "Extension Information"
+        ]
+      }
+    },
     "/api/version": {
       "get": {
         "operationId": "getVersion",
@@ -29,6 +494,138 @@
   },
   "components": {
     "schemas": {
+      "ConfigurationPropertiesModel": {
+        "description": "Extension configuration properties shown on the About page",
+        "properties": {
+          "obsoleteProperties": {
+            "description": "Obsolete or non-valid configuration properties (only key and value are set), sorted by key",
+            "items": {
+              "$ref": "#/components/schemas/ConfigurationPropertyModel"
+            },
+            "type": "array"
+          },
+          "properties": {
+            "description": "Active configuration properties, sorted by key",
+            "items": {
+              "$ref": "#/components/schemas/ConfigurationPropertyModel"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ConfigurationPropertyModel": {
+        "description": "A single extension configuration property as shown on the About page",
+        "properties": {
+          "defaultValue": {
+            "description": "Default value of the property, if any",
+            "type": "string"
+          },
+          "description": {
+            "description": "Human readable description of the property, if any",
+            "type": "string"
+          },
+          "key": {
+            "description": "Property key",
+            "type": "string"
+          },
+          "value": {
+            "description": "Current value of the property",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ConfigurationStatus": {
+        "properties": {
+          "details": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "OK",
+              "WARNING",
+              "ERROR"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Context": {
+        "description": "Represents the context for building URLs related to Polarion services",
+        "properties": {
+          "baseUrl": {
+            "description": "Returns the base URL constructed with the extension context",
+            "type": "string"
+          },
+          "extensionContext": {
+            "description": "The extension context used as a base for URL construction",
+            "type": "string"
+          },
+          "restUrl": {
+            "description": "Returns the REST API URL constructed with the extension context",
+            "type": "string"
+          },
+          "swaggerUiUrl": {
+            "description": "Returns the Swagger UI URL for the REST API",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Revision": {
+        "description": "Revision details",
+        "properties": {
+          "author": {
+            "description": "The author of the revision",
+            "type": "string"
+          },
+          "baseline": {
+            "description": "The baseline of the revision",
+            "type": "string"
+          },
+          "date": {
+            "description": "The date of the revision",
+            "type": "string"
+          },
+          "description": {
+            "description": "The description of the revision",
+            "type": "string"
+          },
+          "name": {
+            "description": "The name of the revision",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SettingName": {
+        "properties": {
+          "name": {
+            "description": "The name of the setting",
+            "type": "string"
+          },
+          "scope": {
+            "description": "The scope of the setting",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SettingsModel": {
+        "description": "Settings model",
+        "properties": {
+          "bundleTimestamp": {
+            "description": "The bundle timestamp of the setting",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Version": {
         "description": "Details about the software version",
         "properties": {
