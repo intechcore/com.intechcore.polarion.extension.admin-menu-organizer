@@ -100,24 +100,28 @@ export default function MenuOrder() {
       )}
 
       <div className="form-wrapper menu-order-page">
-        <label className="menu-order-mode">
-          <input
-            type="checkbox"
-            name="foldersAlphabetically"
-            checked={modes.foldersAlphabetically}
-            onChange={(e) => setModes((prev) => ({ ...prev, foldersAlphabetically: e.target.checked }))}
-          />
-          Sort the sections of extensions alphabetically
-        </label>
-        <label className="menu-order-mode">
-          <input
-            type="checkbox"
-            name="entriesInDeclarationOrder"
-            checked={modes.entriesInDeclarationOrder}
-            onChange={(e) => setModes((prev) => ({ ...prev, entriesInDeclarationOrder: e.target.checked }))}
-          />
-          Show the pages of each section in the order the extension declares them
-        </label>
+        <div className="menu-order-mode">
+          <label>
+            <input
+              type="checkbox"
+              name="foldersAlphabetically"
+              checked={modes.foldersAlphabetically}
+              onChange={(e) => setModes((prev) => ({ ...prev, foldersAlphabetically: e.target.checked }))}
+            />
+            Sort the sections of extensions alphabetically
+          </label>
+        </div>
+        <div className="menu-order-mode">
+          <label>
+            <input
+              type="checkbox"
+              name="entriesInDeclarationOrder"
+              checked={modes.entriesInDeclarationOrder}
+              onChange={(e) => setModes((prev) => ({ ...prev, entriesInDeclarationOrder: e.target.checked }))}
+            />
+            Show the pages of each section in the order the extension declares them
+          </label>
+        </div>
         <p className="menu-order-hint">
           With both options off, the menu keeps the order that Polarion built at startup. Saving applies the order at
           once: reload the Polarion page to see it.

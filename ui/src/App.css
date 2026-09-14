@@ -102,10 +102,7 @@ code {
 /* The About page (and its .markdown-body README article headings) is the shared
    @sbb-polarion/react-sbb-polarion component; its styles ship in the lib's bundled style.css. */
 
-.menu-order-page .menu-order-mode {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.menu-order-mode {
   margin: 8px 0;
 }
 
