@@ -277,7 +277,8 @@ public final class MenuOrderRestorer {
         try {
             return type.getMethod(name, parameterTypes);
         } catch (NoSuchMethodException e) {
-            logger.warn("Administration menu order was not applied: %s has no %s method".formatted(type.getName(), name));
+            // The caller warns once that the configuration is not readable. This detail says why.
+            logger.debug(() -> "%s has no %s method".formatted(type.getName(), name));
             return null;
         }
     }
