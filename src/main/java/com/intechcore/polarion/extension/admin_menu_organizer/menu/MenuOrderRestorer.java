@@ -19,7 +19,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Restores the declaration order of the administration menu entries contributed through
+ * Orders the administration menu entries contributed through
  * {@code com.polarion.xray.webui.administrationPageExtenders}.
  * <p>
  * Up to Polarion 2512 {@code AdministrationPageExtenderProvider} received the HiveMind configuration
@@ -28,12 +28,11 @@ import java.util.stream.Collectors;
  * {@code AbstractHiveMindPlatform.lookupSetConfigurationPoint} and injects it as a {@code Set}. That is
  * a JDK immutable set whose iteration order follows element hash codes salted once per JVM start, and
  * {@code AdministrationPageExtender} does not override {@code hashCode}. Every menu entry of every
- * extension therefore lands in a different place after each restart. The extension point has no order
- * attribute and nothing sorts the entries afterward.
+ * extension therefore lands in a different place after each restart.
  * <p>
  * The HiveMind registry still holds the configuration in declaration order, and the provider keeps its
- * entries in a mutable list. This class copies the registry order into that list, which restores the
- * behavior of Polarion 2512 exactly: the same objects in the same order the platform used to pass in.
+ * entries in a mutable list. This class reads both, lets {@link MenuOrderPlanner} compute the order, and
+ * writes it into that list as a permutation of the entries Polarion already holds.
  * <p>
  * The registry is reached through two public methods ({@code IHiveMindPlatform.getRegistry()} and
  * {@code Registry.getConfiguration(String)}), reflectively so that the {@code org.apache.hivemind} types
@@ -60,107 +59,124 @@ public final class MenuOrderRestorer {
     }
 
     /**
-     * Reorders the administration menu entries of every extension into their declaration order.
+     * Applies the order at server start. It first checks that {@link MenuOrderPlanner#polarionOrder(List)}
+     * reproduces the order Polarion built, because switching the modes off later relies on it. With both
+     * modes off it then changes nothing.
      * <p>
-     * Requires Polarion's platform to be initialized, so call it only after the global Guice injector is
-     * available. A servlet initialized at webapp startup satisfies that: {@code PlatformService.start()}
-     * builds the injector before Tomcat is started. Were that ever untrue, the provider would simply not
-     * be injected and this logs a warning and changes nothing.
-     * <p>
-     * Safe to call repeatedly: each call computes the same order, and the work is serialized on the list.
+     * Requires Polarion's platform to be initialized. A servlet initialized at webapp startup satisfies
+     * that: {@code PlatformService.start()} builds the Guice injector before Tomcat is started.
      */
-    public static void restoreDeclarationOrder() {
+    public static void applyAtStartup(boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
+        run(true, foldersAlphabetically, entriesInDeclarationOrder);
+    }
+
+    /** Applies the order after the modes change, including back to Polarion's own order when both are off. */
+    public static void apply(boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
+        run(false, foldersAlphabetically, entriesInDeclarationOrder);
+    }
+
+    private static void run(boolean atStartup, boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
         try {
             AdministrationPageExtenderProvider provider = lookupProvider();
             if (provider == null) {
-                logger.warn("Administration menu order was not restored: the page extender provider was not injected");
+                logger.warn("Administration menu order was not applied: the page extender provider was not injected");
                 return;
             }
-            restoreDeclarationOrder(provider, PlatformContext.getPlatform());
+            apply(provider, PlatformContext.getPlatform(), atStartup, foldersAlphabetically, entriesInDeclarationOrder);
         } catch (Exception | LinkageError e) {
             // Every Polarion type named here can move in a future release, and a failure must never take
-            // the calling servlet down with it.
-            logger.warn("Administration menu order was not restored, Polarion's own order is kept", e);
+            // the calling servlet or request down with it.
+            logger.warn("Administration menu order was not applied, Polarion's own order is kept", e);
         }
     }
 
-    /**
-     * The reordering itself. Both collaborators are passed in, so it can be driven without a running
-     * Polarion.
-     *
-     * @param provider the provider holding every extension's menu entries
-     * @param platform the platform to read the HiveMind configuration from
-     */
-    static void restoreDeclarationOrder(@NotNull AdministrationPageExtenderProvider provider, @NotNull IPlatform platform) throws ReflectiveOperationException {
+    static void apply(@NotNull AdministrationPageExtenderProvider provider, @NotNull IPlatform platform,
+                      boolean atStartup, boolean foldersAlphabetically, boolean entriesInDeclarationOrder) throws ReflectiveOperationException {
         List<Object> liveOrder = readLiveOrder(provider);
         if (liveOrder == null) {
-            logger.warn("Administration menu order was not restored: %s has no readable '%s' list"
+            logger.warn("Administration menu order was not applied: %s has no readable '%s' list"
                     .formatted(provider.getClass().getName(), EXTENDERS_FIELD));
             return;
         }
-        List<?> declaredOrder = readDeclaredOrder(platform);
+        List<Object> declaredOrder = readDeclaredOrder(platform);
         if (declaredOrder == null) {
-            logger.warn("Administration menu order was not restored: the '%s' configuration is not readable".formatted(CONFIG_ID));
+            logger.warn("Administration menu order was not applied: the '%s' configuration is not readable".formatted(CONFIG_ID));
             return;
         }
+
+        Outcome outcome;
         // The lock covers the already-ordered check too, so of two concurrent calls one does the work and
         // the other finds it done. Polarion's readers never take this monitor, see restore(List, List).
-        Outcome outcome;
         synchronized (liveOrder) {
-            outcome = restore(liveOrder, declaredOrder);
+            if (atStartup) {
+                checkPolarionOrder(liveOrder, declaredOrder);
+                if (!foldersAlphabetically && !entriesInDeclarationOrder) {
+                    return;
+                }
+            }
+            outcome = restore(liveOrder, MenuOrderPlanner.plan(declaredOrder, foldersAlphabetically, entriesInDeclarationOrder));
         }
         switch (outcome) {
-            case RESTORED -> {
-                logger.info("Restored the declaration order of %d administration menu entries".formatted(declaredOrder.size()));
-                logger.debug(() -> "Administration menu order: %s".formatted(describe(declaredOrder)));
+            case APPLIED -> {
+                logger.info("Ordered %d administration menu entries (folders alphabetically: %s, entries in declaration order: %s)"
+                        .formatted(liveOrder.size(), foldersAlphabetically, entriesInDeclarationOrder));
+                logger.debug(() -> "Administration menu order: %s".formatted(describe(liveOrder)));
             }
-            case ALREADY_ORDERED -> logger.debug(() -> "Administration menu already holds its %d entries in declaration order"
-                    .formatted(declaredOrder.size()));
-            case MISMATCH -> logger.warn("Administration menu order was not restored: Polarion's menu entries do not match its own configuration");
+            case ALREADY_ORDERED -> logger.debug(() -> "Administration menu already holds its %d entries in the requested order"
+                    .formatted(liveOrder.size()));
+            case MISMATCH -> logger.warn("Administration menu order was not applied: Polarion's menu entries do not match its own configuration");
+        }
+    }
+
+    private static void checkPolarionOrder(@NotNull List<Object> liveOrder, @NotNull List<Object> declaredOrder) {
+        List<Object> polarionOrder = MenuOrderPlanner.polarionOrder(declaredOrder);
+        if (liveOrder.size() == polarionOrder.size() && alreadyOrdered(liveOrder, polarionOrder)) {
+            logger.debug("Polarion's own administration menu order is reproducible");
+        } else {
+            logger.warn("Polarion's own administration menu order cannot be reproduced: switching the ordering modes off will not return to it exactly");
         }
     }
 
     /**
-     * Copies {@code declaredOrder} into {@code liveOrder} position by position.
+     * Copies {@code targetOrder} into {@code liveOrder} position by position.
      * <p>
      * Only a permutation is applied, and only when both lists hold exactly the same objects. The size
      * never changes and no position is ever empty, so a reader building the navigation tree in parallel
      * cannot observe a null entry. It can, while the loop runs, briefly see one entry twice and another
-     * not at all, and holding no lock this class holds, it is not guaranteed to observe the new order at
-     * all. Both are acceptable here: the window is a few microseconds during webapp startup, before
-     * administration pages are served. Rejecting anything but a permutation keeps a future Polarion,
-     * which may fill the provider from somewhere else, from having its entries replaced.
+     * not at all: that reader renders one menu with a duplicated entry, and the next render is correct.
+     * Rejecting anything but a permutation keeps a future Polarion, which may fill the provider from
+     * somewhere else, from having its entries replaced.
      *
-     * @param liveOrder     the provider's own list, modified in place
-     * @param declaredOrder the same entries in declaration order
+     * @param liveOrder   the provider's own list, modified in place
+     * @param targetOrder the same entries in the requested order
      * @return what the call did, see {@link Outcome}
      */
-    static @NotNull Outcome restore(@NotNull List<Object> liveOrder, @NotNull List<?> declaredOrder) {
-        if (liveOrder.size() != declaredOrder.size() || !holdSameEntries(liveOrder, declaredOrder)) {
+    static @NotNull Outcome restore(@NotNull List<Object> liveOrder, @NotNull List<?> targetOrder) {
+        if (liveOrder.size() != targetOrder.size() || !holdSameEntries(liveOrder, targetOrder)) {
             return Outcome.MISMATCH;
         }
-        if (alreadyOrdered(liveOrder, declaredOrder)) {
+        if (alreadyOrdered(liveOrder, targetOrder)) {
             return Outcome.ALREADY_ORDERED;
         }
-        for (int i = 0; i < declaredOrder.size(); i++) {
-            liveOrder.set(i, declaredOrder.get(i));
+        for (int i = 0; i < targetOrder.size(); i++) {
+            liveOrder.set(i, targetOrder.get(i));
         }
-        return Outcome.RESTORED;
+        return Outcome.APPLIED;
     }
 
     /** What a {@link #restore(List, List)} call did. */
     enum Outcome {
         /** The order was applied. */
-        RESTORED,
-        /** Nothing to do: the entries already sat in declaration order. */
+        APPLIED,
+        /** Nothing to do: the entries already sat in the requested order. */
         ALREADY_ORDERED,
         /** The two lists do not hold the same entries, so nothing was touched. */
         MISMATCH
     }
 
-    private static boolean alreadyOrdered(@NotNull List<?> liveOrder, @NotNull List<?> declaredOrder) {
-        for (int i = 0; i < declaredOrder.size(); i++) {
-            if (liveOrder.get(i) != declaredOrder.get(i)) {
+    private static boolean alreadyOrdered(@NotNull List<?> liveOrder, @NotNull List<?> targetOrder) {
+        for (int i = 0; i < targetOrder.size(); i++) {
+            if (liveOrder.get(i) != targetOrder.get(i)) {
                 return false;
             }
         }
@@ -253,7 +269,7 @@ public final class MenuOrderRestorer {
         try {
             return type.getMethod(name, parameterTypes);
         } catch (NoSuchMethodException e) {
-            logger.warn("Administration menu order was not restored: %s has no %s method".formatted(type.getName(), name));
+            logger.warn("Administration menu order was not applied: %s has no %s method".formatted(type.getName(), name));
             return null;
         }
     }

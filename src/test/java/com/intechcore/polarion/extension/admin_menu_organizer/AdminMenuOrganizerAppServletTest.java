@@ -78,7 +78,7 @@ class AdminMenuOrganizerAppServletTest {
      * Outside a running Polarion there is no provider to reorder, and the servlet must still load.
      */
     @Test
-    void initRestoresTheMenuOrderWithoutThrowing() {
+    void initAppliesTheMenuOrderWithoutThrowing() {
         AdminMenuOrganizerAppServlet freshServlet = new AdminMenuOrganizerAppServlet();
 
         Executable init = freshServlet::init;
@@ -91,11 +91,11 @@ class AdminMenuOrganizerAppServletTest {
      * Polarion. That must never stop the extension's pages from loading.
      */
     @Test
-    void initSurvivesAFailingMenuOrderRestore() {
+    void initSurvivesAFailingMenuOrderApply() {
         AdminMenuOrganizerAppServlet freshServlet = new AdminMenuOrganizerAppServlet();
 
         try (MockedStatic<MenuOrderRestorer> restorer = mockStatic(MenuOrderRestorer.class)) {
-            restorer.when(MenuOrderRestorer::restoreDeclarationOrder)
+            restorer.when(() -> MenuOrderRestorer.applyAtStartup(false, false))
                     .thenThrow(new NoClassDefFoundError("com/polarion/alm/administration/web/server/AdministrationPageExtenderProvider"));
 
             Executable init = freshServlet::init;

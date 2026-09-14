@@ -13,7 +13,7 @@ import java.io.Serial;
  * {@code /polarion/admin-menu-organizer-app/ui/app/index.html?feature=<id>}; everything else about the
  * request handling comes from the generic servlet.
  * <p>
- * Its {@code init()} is also where the administration menu order is restored at server start, which is why
+ * Its {@code init()} is also where the administration menu order is applied at server start, which is why
  * {@code web.xml} declares this servlet with {@code load-on-startup}.
  */
 public class AdminMenuOrganizerAppServlet extends GenericUiServlet {
@@ -31,10 +31,10 @@ public class AdminMenuOrganizerAppServlet extends GenericUiServlet {
     public void init() throws ServletException {
         super.init();
         try {
-            MenuOrderRestorer.restoreDeclarationOrder();
+            MenuOrderRestorer.applyAtStartup(false, false);
         } catch (Exception | LinkageError e) {
             // The restorer guards its own body, but loading it can fail before that body runs.
-            logger.warn("Could not restore the administration menu order", e);
+            logger.warn("Could not apply the administration menu order", e);
         }
     }
 }
