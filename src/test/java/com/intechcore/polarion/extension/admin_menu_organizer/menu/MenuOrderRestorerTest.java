@@ -191,7 +191,7 @@ class MenuOrderRestorerTest {
 
     @Test
     void describesEntriesInOrder() {
-        assertEquals("a, b", MenuOrderRestorer.describe(entries("a", "b")));
+        assertEquals("ext/a, ext/b", MenuOrderRestorer.describe(List.of(realExtender("a"), realExtender("b"))));
     }
 
     /**
@@ -279,7 +279,7 @@ class MenuOrderRestorerTest {
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(extender)));
 
-        List<Object> liveOrder = MenuOrderRestorer.readLiveOrder(provider);
+        List<AdministrationPageExtender> liveOrder = MenuOrderRestorer.readLiveOrder(provider);
 
         assertNotNull(liveOrder);
         assertSame(extender, liveOrder.getFirst());
@@ -290,7 +290,7 @@ class MenuOrderRestorerTest {
 
     @Test
     void readsTheDeclaredOrderFromTheRegistry() throws Exception {
-        List<Object> configuration = entries("about", "css");
+        List<Object> configuration = List.of(realExtender("about"), realExtender("css"));
         FakeRegistry registry = new FakeRegistry(configuration);
 
         List<?> declaredOrder = MenuOrderRestorer.readDeclaredOrder(new FakePlatform(registry));
@@ -313,6 +313,14 @@ class MenuOrderRestorerTest {
         assertNull(MenuOrderRestorer.readDeclaredOrder(new FakePlatform(new FakeRegistry("not a list"))));
         // A registry that no longer answers getConfiguration(String) at all.
         assertNull(MenuOrderRestorer.readDeclaredOrder(new FakePlatform(new Object())));
+    }
+
+    /** Only extenders may reach the provider's list, so a configuration holding anything else is not used. */
+    @Test
+    void readsNoDeclaredOrderWhenTheConfigurationHoldsOtherTypes() throws Exception {
+        List<Object> mixed = List.of(realExtender("about"), "not an extender");
+
+        assertNull(MenuOrderRestorer.readDeclaredOrder(new FakePlatform(new FakeRegistry(mixed))));
     }
 
     @Test
@@ -359,10 +367,10 @@ class MenuOrderRestorerTest {
     }
 
     @SuppressWarnings({"unchecked", "java:S3011"})
-    private static List<Object> liveOrderOf(AdministrationPageExtenderProvider provider) throws Exception {
+    private static List<AdministrationPageExtender> liveOrderOf(AdministrationPageExtenderProvider provider) throws Exception {
         Field field = AdministrationPageExtenderProvider.class.getDeclaredField("extenders");
         field.setAccessible(true);
-        return (List<Object>) field.get(provider);
+        return (List<AdministrationPageExtender>) field.get(provider);
     }
 
     /** Fills the provider the way Polarion 2606 does: the declared entries through Set.copyOf. */
@@ -485,7 +493,7 @@ class MenuOrderRestorerTest {
         SubclassedProvider provider = new SubclassedProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(about)));
 
-        List<Object> liveOrder = MenuOrderRestorer.readLiveOrder(provider);
+        List<AdministrationPageExtender> liveOrder = MenuOrderRestorer.readLiveOrder(provider);
 
         assertNotNull(liveOrder);
         assertSame(about, liveOrder.getFirst());

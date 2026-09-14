@@ -26,7 +26,7 @@ final class MenuOrderPlanner {
      * The iteration order of the set depends only on the identity hash codes of the entries and on a salt
      * chosen once per JVM start, so repeating the copy in the same JVM gives the same order.
      */
-    static @NotNull List<Object> polarionOrder(@NotNull List<?> declaredOrder) {
+    static @NotNull List<AdministrationPageExtender> polarionOrder(@NotNull List<AdministrationPageExtender> declaredOrder) {
         return new ArrayList<>(Set.copyOf(declaredOrder));
     }
 
@@ -35,22 +35,23 @@ final class MenuOrderPlanner {
      * {@code foldersAlphabetically} is set, otherwise to where its first entry is in Polarion's order. An
      * entry outside any folder is placed the same way, by its own name.
      */
-    static @NotNull List<Object> plan(@NotNull List<?> declaredOrder, boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
-        List<Object> polarionOrder = polarionOrder(declaredOrder);
+    static @NotNull List<AdministrationPageExtender> plan(@NotNull List<AdministrationPageExtender> declaredOrder,
+                                                          boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
+        List<AdministrationPageExtender> polarionOrder = polarionOrder(declaredOrder);
         if (!foldersAlphabetically && !entriesInDeclarationOrder) {
             return polarionOrder;
         }
 
         Folders folders = new Folders(polarionOrder);
-        Comparator<Object> order;
+        Comparator<AdministrationPageExtender> order;
         if (foldersAlphabetically) {
-            order = Comparator.<Object, String>comparing(folders::label, labelCollator()).thenComparingInt(folders::firstIndex);
+            order = Comparator.<AdministrationPageExtender, String>comparing(folders::label, labelCollator()).thenComparingInt(folders::firstIndex);
         } else {
             order = Comparator.comparingInt(folders::firstIndex);
         }
-        Map<Object, Integer> entryIndexes = indexes(entriesInDeclarationOrder ? declaredOrder : polarionOrder);
+        Map<AdministrationPageExtender, Integer> entryIndexes = indexes(entriesInDeclarationOrder ? declaredOrder : polarionOrder);
 
-        List<Object> planned = new ArrayList<>(polarionOrder);
+        List<AdministrationPageExtender> planned = new ArrayList<>(polarionOrder);
         planned.sort(order.thenComparingInt(entryIndexes::get));
         return planned;
     }
@@ -62,8 +63,8 @@ final class MenuOrderPlanner {
         return collator;
     }
 
-    private static @NotNull Map<Object, Integer> indexes(@NotNull List<?> entries) {
-        Map<Object, Integer> result = new IdentityHashMap<>();
+    private static @NotNull Map<AdministrationPageExtender, Integer> indexes(@NotNull List<AdministrationPageExtender> entries) {
+        Map<AdministrationPageExtender, Integer> result = new IdentityHashMap<>();
         for (int i = 0; i < entries.size(); i++) {
             result.putIfAbsent(entries.get(i), i);
         }
@@ -77,21 +78,20 @@ final class MenuOrderPlanner {
      * the folder.
      */
     private static final class Folders {
-        private final Map<Object, String> folderOfEntry = new IdentityHashMap<>();
+        private final Map<AdministrationPageExtender, String> folderOfEntry = new IdentityHashMap<>();
         private final Map<String, Integer> firstIndexes = new HashMap<>();
         private final Map<String, String> labels = new HashMap<>();
 
-        Folders(@NotNull List<Object> entries) {
+        Folders(@NotNull List<AdministrationPageExtender> entries) {
             Map<String, String> namesById = new HashMap<>();
-            for (Object entry : entries) {
-                AdministrationPageExtender extender = (AdministrationPageExtender) entry;
+            for (AdministrationPageExtender extender : entries) {
                 if (isSet(extender.getParentNodeId()) && isSet(extender.getParentNodeName())) {
                     namesById.putIfAbsent(extender.getParentNodeId(), extender.getParentNodeName());
                 }
             }
 
             for (int i = 0; i < entries.size(); i++) {
-                AdministrationPageExtender extender = (AdministrationPageExtender) entries.get(i);
+                AdministrationPageExtender extender = entries.get(i);
                 String folderName = isSet(extender.getParentNodeName()) ? extender.getParentNodeName() : namesById.get(extender.getParentNodeId());
                 String folder;
                 String label;
@@ -116,11 +116,11 @@ final class MenuOrderPlanner {
             }
         }
 
-        int firstIndex(@NotNull Object entry) {
+        int firstIndex(@NotNull AdministrationPageExtender entry) {
             return firstIndexes.get(folderOfEntry.get(entry));
         }
 
-        @NotNull String label(@NotNull Object entry) {
+        @NotNull String label(@NotNull AdministrationPageExtender entry) {
             return labels.get(folderOfEntry.get(entry));
         }
 

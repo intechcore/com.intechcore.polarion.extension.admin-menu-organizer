@@ -92,13 +92,13 @@ public final class MenuOrderRestorer {
 
     static void apply(@NotNull AdministrationPageExtenderProvider provider, @NotNull IPlatform platform,
                       boolean atStartup, boolean foldersAlphabetically, boolean entriesInDeclarationOrder) throws ReflectiveOperationException {
-        List<Object> liveOrder = readLiveOrder(provider);
+        List<AdministrationPageExtender> liveOrder = readLiveOrder(provider);
         if (liveOrder == null) {
             logger.warn("Administration menu order was not applied: %s has no readable '%s' list"
                     .formatted(provider.getClass().getName(), EXTENDERS_FIELD));
             return;
         }
-        List<Object> declaredOrder = readDeclaredOrder(platform);
+        List<AdministrationPageExtender> declaredOrder = readDeclaredOrder(platform);
         if (declaredOrder == null) {
             logger.warn("Administration menu order was not applied: the '%s' configuration is not readable".formatted(CONFIG_ID));
             return;
@@ -128,8 +128,8 @@ public final class MenuOrderRestorer {
         }
     }
 
-    private static void checkPolarionOrder(@NotNull List<Object> liveOrder, @NotNull List<Object> declaredOrder) {
-        List<Object> polarionOrder = MenuOrderPlanner.polarionOrder(declaredOrder);
+    private static void checkPolarionOrder(@NotNull List<AdministrationPageExtender> liveOrder, @NotNull List<AdministrationPageExtender> declaredOrder) {
+        List<AdministrationPageExtender> polarionOrder = MenuOrderPlanner.polarionOrder(declaredOrder);
         if (liveOrder.size() == polarionOrder.size() && alreadyOrdered(liveOrder, polarionOrder)) {
             logger.debug("Polarion's own administration menu order is reproducible");
         } else {
@@ -149,9 +149,10 @@ public final class MenuOrderRestorer {
      *
      * @param liveOrder   the provider's own list, modified in place
      * @param targetOrder the same entries in the requested order
+     * @param <T>         the type of the entries
      * @return what the call did, see {@link Outcome}
      */
-    static @NotNull Outcome restore(@NotNull List<Object> liveOrder, @NotNull List<?> targetOrder) {
+    static <T> @NotNull Outcome restore(@NotNull List<T> liveOrder, @NotNull List<? extends T> targetOrder) {
         if (liveOrder.size() != targetOrder.size() || !holdSameEntries(liveOrder, targetOrder)) {
             return Outcome.MISMATCH;
         }
@@ -187,11 +188,9 @@ public final class MenuOrderRestorer {
      * Renders the applied order for the log, so the result is verifiable on a running server without a
      * debugger. Entries are named {@code parentNodeId/id}.
      */
-    static @NotNull String describe(@NotNull List<?> entries) {
+    static @NotNull String describe(@NotNull List<AdministrationPageExtender> entries) {
         return entries.stream()
-                .map(entry -> entry instanceof AdministrationPageExtender extender
-                        ? "%s/%s".formatted(extender.getParentNodeId(), extender.getId())
-                        : String.valueOf(entry))
+                .map(extender -> "%s/%s".formatted(extender.getParentNodeId(), extender.getId()))
                 .collect(Collectors.joining(", "));
     }
 
@@ -228,13 +227,15 @@ public final class MenuOrderRestorer {
      * provider is still handled.
      */
     @SuppressWarnings({"unchecked", "java:S3011"})
-    static @Nullable List<Object> readLiveOrder(@NotNull AdministrationPageExtenderProvider provider) throws ReflectiveOperationException {
+    static @Nullable List<AdministrationPageExtender> readLiveOrder(@NotNull AdministrationPageExtenderProvider provider) throws ReflectiveOperationException {
         for (Class<?> type = provider.getClass(); type != null; type = type.getSuperclass()) {
             try {
                 Field field = type.getDeclaredField(EXTENDERS_FIELD);
                 field.setAccessible(true);
                 Object value = field.get(provider);
-                return value instanceof List ? (List<Object>) value : null;
+                // The field is declared as a list of extenders, and restore() writes into it only entries
+                // that readDeclaredOrder() has checked.
+                return value instanceof List ? (List<AdministrationPageExtender>) value : null;
             } catch (NoSuchFieldException e) {
                 // Keep looking further up the hierarchy.
             }
@@ -244,10 +245,10 @@ public final class MenuOrderRestorer {
 
     /**
      * Reads the configuration straight from the HiveMind registry, the only place that still holds the
-     * entries in declaration order.
+     * entries in declaration order. A configuration holding anything but extenders is not used.
      */
     @SuppressWarnings("unchecked")
-    static @Nullable List<Object> readDeclaredOrder(@NotNull IPlatform platform) throws ReflectiveOperationException {
+    static @Nullable List<AdministrationPageExtender> readDeclaredOrder(@NotNull IPlatform platform) throws ReflectiveOperationException {
         Method getRegistry = findMethod(platform.getClass(), GET_REGISTRY_METHOD);
         if (getRegistry == null) {
             return null;
@@ -261,8 +262,12 @@ public final class MenuOrderRestorer {
             return null;
         }
         Object configuration = getConfiguration.invoke(registry, CONFIG_ID);
-        // The elements are only ever read and handed to restore(), so the cast carries no risk.
-        return configuration instanceof List<?> list && !list.isEmpty() ? (List<Object>) list : null;
+        if (!(configuration instanceof List<?> list) || list.isEmpty()
+                || !list.stream().allMatch(AdministrationPageExtender.class::isInstance)) {
+            return null;
+        }
+        // Every element was checked above, so the cast is safe.
+        return (List<AdministrationPageExtender>) list;
     }
 
     static @Nullable Method findMethod(@NotNull Class<?> type, @NotNull String name, @NotNull Class<?>... parameterTypes) {
