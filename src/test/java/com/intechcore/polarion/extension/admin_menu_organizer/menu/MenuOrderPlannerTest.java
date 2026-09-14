@@ -1,6 +1,7 @@
 package com.intechcore.polarion.extension.admin_menu_organizer.menu;
 
 import com.polarion.alm.administration.web.server.AdministrationPageExtender;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -10,7 +11,13 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/**
+ * Polarion's order follows the identity hash codes of the entries, so every repetition of a test builds
+ * fresh entries and meets a different starting order.
+ */
 class MenuOrderPlannerTest {
+
+    private static final int REPETITIONS = 50;
 
     private static AdministrationPageExtender entry(String folderId, String folderName, String name) {
         AdministrationPageExtender extender = new AdministrationPageExtender();
@@ -56,7 +63,7 @@ class MenuOrderPlannerTest {
         assertEquals(folders(entries), runs, "every folder must be one contiguous block");
     }
 
-    @Test
+    @RepeatedTest(REPETITIONS)
     void keepsPolarionsOrderWithBothModesOff() {
         List<AdministrationPageExtender> declared = declared();
 
@@ -70,7 +77,7 @@ class MenuOrderPlannerTest {
         assertEquals(Set.copyOf(declared), Set.copyOf(MenuOrderPlanner.polarionOrder(declared)));
     }
 
-    @Test
+    @RepeatedTest(REPETITIONS)
     void ordersEntriesByDeclarationAndKeepsTheFoldersWherePolarionPutThem() {
         List<AdministrationPageExtender> declared = declared();
         List<Object> polarionOrder = MenuOrderPlanner.polarionOrder(declared);
@@ -84,7 +91,7 @@ class MenuOrderPlannerTest {
         }
     }
 
-    @Test
+    @RepeatedTest(REPETITIONS)
     void ordersFoldersAlphabeticallyAndKeepsTheEntriesWherePolarionPutThem() {
         List<AdministrationPageExtender> declared = declared();
         List<Object> polarionOrder = MenuOrderPlanner.polarionOrder(declared);
@@ -98,7 +105,7 @@ class MenuOrderPlannerTest {
         }
     }
 
-    @Test
+    @RepeatedTest(REPETITIONS)
     void appliesBothModesTogether() {
         List<AdministrationPageExtender> declared = declared();
 
@@ -108,7 +115,7 @@ class MenuOrderPlannerTest {
     }
 
     /** Polarion's menu puts an entry that names only the folder id into the folder another entry names. */
-    @Test
+    @RepeatedTest(REPETITIONS)
     void placesAnEntryGivingOnlyTheFolderIdInThatFolder() {
         AdministrationPageExtender about = entry("pdf", "PDF Export", "About");
         AdministrationPageExtender restApi = entry("pdf", null, "REST API");
@@ -120,7 +127,7 @@ class MenuOrderPlannerTest {
         assertEquals(List.of(aaa, about, restApi), planned);
     }
 
-    @Test
+    @RepeatedTest(REPETITIONS)
     void placesAnEntryGivingOnlyTheFolderNameInThatFolder() {
         AdministrationPageExtender about = entry("pdf", "PDF Export", "About");
         AdministrationPageExtender guide = entry(null, "PDF Export", "User Guide");
@@ -132,7 +139,7 @@ class MenuOrderPlannerTest {
         assertEquals(List.of(about, guide, zed), planned);
     }
 
-    @Test
+    @RepeatedTest(REPETITIONS)
     void keepsAFolderNamedOnlyByNameTogether() {
         AdministrationPageExtender first = entry(null, "Tools", "First");
         AdministrationPageExtender second = entry(null, "Tools", "Second");
@@ -144,7 +151,7 @@ class MenuOrderPlannerTest {
         assertEquals(List.of(other, first, second), planned);
     }
 
-    @Test
+    @RepeatedTest(REPETITIONS)
     void neverChangesTheEntries() {
         List<AdministrationPageExtender> declared = declared();
 

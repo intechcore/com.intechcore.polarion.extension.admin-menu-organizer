@@ -62,8 +62,8 @@ final class MenuOrderPlanner {
     }
 
     /**
-     * Groups the entries the way Polarion's menu does: an entry belongs to the folder whose id or name it
-     * gives, so an entry that gives only the folder id joins the folder another entry names.
+     * Groups the entries the way Polarion's menu does: a folder is identified by its name, and an entry
+     * that gives only the folder id joins the folder that another entry with the same id names.
      */
     private static final class Folders {
         private final Map<Object, String> folderOfEntry = new IdentityHashMap<>();
@@ -72,26 +72,24 @@ final class MenuOrderPlanner {
 
         Folders(@NotNull List<Object> entries) {
             Map<String, String> namesById = new HashMap<>();
-            Map<String, String> idsByName = new HashMap<>();
             for (Object entry : entries) {
                 AdministrationPageExtender extender = (AdministrationPageExtender) entry;
                 if (isSet(extender.getParentNodeId()) && isSet(extender.getParentNodeName())) {
                     namesById.putIfAbsent(extender.getParentNodeId(), extender.getParentNodeName());
-                    idsByName.putIfAbsent(extender.getParentNodeName(), extender.getParentNodeId());
                 }
             }
 
             for (int i = 0; i < entries.size(); i++) {
                 AdministrationPageExtender extender = (AdministrationPageExtender) entries.get(i);
-                String parentId = isSet(extender.getParentNodeId()) ? extender.getParentNodeId() : idsByName.get(extender.getParentNodeName());
+                String folderName = isSet(extender.getParentNodeName()) ? extender.getParentNodeName() : namesById.get(extender.getParentNodeId());
                 String folder;
                 String label;
-                if (parentId != null) {
-                    folder = "id:" + parentId;
-                    label = namesById.getOrDefault(parentId, parentId);
-                } else if (isSet(extender.getParentNodeName())) {
-                    folder = "name:" + extender.getParentNodeName();
-                    label = extender.getParentNodeName();
+                if (folderName != null) {
+                    folder = "name:" + folderName;
+                    label = folderName;
+                } else if (isSet(extender.getParentNodeId())) {
+                    folder = "id:" + extender.getParentNodeId();
+                    label = extender.getParentNodeId();
                 } else {
                     folder = "entry:" + i;
                     label = Objects.requireNonNullElse(extender.getName(), "");
