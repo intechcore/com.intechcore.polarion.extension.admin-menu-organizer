@@ -1,6 +1,16 @@
 {
   "openapi": "3.0.1",
   "info": {
+    "contact": {
+      "email": "polarion@intechcore.com",
+      "name": "Intechcore GmbH",
+      "url": "https://www.intechcore.com"
+    },
+    "description": "Version, documentation and settings of the Admin Menu Organizer extension for Polarion ALM.",
+    "license": {
+      "name": "Apache License, Version 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    },
     "title": "Admin Menu Organizer REST API",
     "version": "v1"
   },
