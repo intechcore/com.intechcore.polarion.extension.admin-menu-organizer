@@ -9,6 +9,16 @@ interface RequestParams {
   contentType?: string;
 }
 
+/** Stands in for a failed fetch, so callers handle a network failure like any other error response. */
+const networkErrorResponse = () =>
+  new Response(
+    JSON.stringify({ errorMessage: 'Network error occurred. Be sure Polarion is started and accessible.' }),
+    {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    },
+  );
+
 /**
  * Thin wrapper over fetch for the extension's REST API. In `vite dev` requests are proxied to a real
  * Polarion (see vite.config.js); a personal access token in VITE_BEARER_TOKEN switches to the
@@ -28,15 +38,6 @@ export default function useRemote() {
     },
     [token],
   );
-
-  const networkErrorResponse = () =>
-    new Response(
-      JSON.stringify({ errorMessage: 'Network error occurred. Be sure Polarion is started and accessible.' }),
-      {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
 
   /** Call an endpoint relative to the REST base (e.g. `/version`, `/configuration-properties`). */
   const sendRequest = useCallback(

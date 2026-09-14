@@ -37,12 +37,27 @@ public class MenuOrderSettings extends GenericNamedSettings<MenuOrderSettingsMod
         if (!DEFAULT_SCOPE.equals(scope)) {
             throw new IllegalArgumentException("The administration menu order can only be set in the global scope");
         }
+        // Server start reads only the Default setting: any other name would apply now and be lost at the next restart.
+        if (!DEFAULT_NAME.equals(what.getName())) {
+            throw new IllegalArgumentException("The administration menu order can only be stored in the Default setting");
+        }
         return super.save(scope, id, what);
     }
 
     @Override
     public void afterSave(@NotNull MenuOrderSettingsModel what) {
         MenuOrderRestorer.apply(what.isFoldersAlphabetically(), what.isEntriesInDeclarationOrder());
+    }
+
+    /**
+     * Applies what the Default setting holds once the delete is done, because generic has no hook after a
+     * delete. A deleted Default reads as the defaults, which return the menu to Polarion's own order.
+     */
+    @Override
+    public void delete(@NotNull String scope, @NotNull SettingId id) {
+        super.delete(scope, id);
+        MenuOrderSettingsModel stored = read(DEFAULT_SCOPE, SettingId.fromName(DEFAULT_NAME), null);
+        MenuOrderRestorer.apply(stored.isFoldersAlphabetically(), stored.isEntriesInDeclarationOrder());
     }
 
     /** Reads the stored modes as the system user: at server start there is no user session to read them with. */

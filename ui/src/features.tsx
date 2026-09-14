@@ -20,12 +20,6 @@ export interface Feature {
 
 export const FEATURES: Feature[] = [
   {
-    id: 'menu-order',
-    label: 'Menu Order',
-    description: 'The ordering options of the Administration menu.',
-    component: MenuOrder,
-  },
-  {
     id: 'about',
     label: 'About',
     description: 'Extension version and general information.',
@@ -36,6 +30,12 @@ export const FEATURES: Feature[] = [
     label: 'Disclaimer',
     description: 'The problem this extension shows, what it does, and the risks of using it.',
     component: Disclaimer,
+  },
+  {
+    id: 'menu-order',
+    label: 'Menu Order',
+    description: 'The ordering options of the Administration menu.',
+    component: MenuOrder,
   },
 ];
 

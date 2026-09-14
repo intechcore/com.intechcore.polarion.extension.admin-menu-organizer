@@ -1,11 +1,13 @@
 package com.intechcore.polarion.extension.admin_menu_organizer.settings;
 
 import ch.sbb.polarion.extension.generic.settings.SettingsModel;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /** The two ordering modes of the administration menu. Both are off by default, which changes nothing. */
+@EqualsAndHashCode(callSuper = true)
 @Getter
 @Setter
 @NoArgsConstructor

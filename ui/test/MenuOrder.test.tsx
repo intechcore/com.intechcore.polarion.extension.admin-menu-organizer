@@ -143,16 +143,18 @@ describe('Menu Order page', () => {
     expect(checkbox('foldersAlphabetically').checked).toBe(false);
   });
 
-  it('says so when the defaults cannot be loaded', async () => {
+  it('reports defaults that cannot be loaded in a message and keeps the form', async () => {
     await mount([stored(true, true), { method: 'GET', match: DEFAULTS, respond: () => jsonResponse({}, 500) }]);
 
     button('Default').click();
     await answerDialog('OK');
 
-    await vi.waitFor(() => expect(document.querySelector('.alert-error')).not.toBeNull());
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Request failed with status 500'));
+    expect(document.querySelector('.alert-error')).toBeNull();
+    expect(checkbox('foldersAlphabetically').checked).toBe(true);
   });
 
-  it('says so when the stored modes cannot be reloaded on Cancel', async () => {
+  it('reports stored modes that cannot be reloaded on Cancel in a message', async () => {
     let reads = 0;
     await mount([
       {
@@ -168,10 +170,32 @@ describe('Menu Order page', () => {
     button('Cancel').click();
     await answerDialog('OK');
 
-    await vi.waitFor(() => expect(document.querySelector('.alert-error')).not.toBeNull());
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Request failed with status 500'));
+    expect(document.querySelector('.alert-error')).toBeNull();
   });
 
-  it('says so when a revision cannot be loaded', async () => {
+  it('clears the load error once Cancel reloads the stored modes', async () => {
+    let reads = 0;
+    await mount([
+      {
+        method: 'GET',
+        match: CONTENT,
+        respond: () => {
+          reads += 1;
+          return reads === 1 ? jsonResponse({}, 500) : jsonResponse({ foldersAlphabetically: true });
+        },
+      },
+    ]);
+    expect(document.querySelector('.alert-error')).not.toBeNull();
+
+    button('Cancel').click();
+    await answerDialog('OK');
+
+    await vi.waitFor(() => expect(checkbox('foldersAlphabetically').checked).toBe(true));
+    expect(document.querySelector('.alert-error')).toBeNull();
+  });
+
+  it('reports a revision that cannot be loaded in a message', async () => {
     await mount([
       { method: 'GET', match: REVISION_CONTENT, respond: () => jsonResponse({}, 500) },
       stored(true, false),
@@ -182,8 +206,32 @@ describe('Menu Order page', () => {
     await vi.waitFor(() => expect(document.querySelector('.revert-to-revision-button')).not.toBeNull());
     document.querySelector<HTMLButtonElement>('.revert-to-revision-button')!.click();
 
-    await vi.waitFor(() => expect(document.querySelector('.alert-error')).not.toBeNull());
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Request failed with status 500'));
+    expect(document.querySelector('.alert-error')).toBeNull();
   });
+
+  it('dismisses earlier messages when a revision is loaded', async () => {
+    await mount([
+      {
+        method: 'GET',
+        match: REVISION_CONTENT,
+        json: { foldersAlphabetically: false, entriesInDeclarationOrder: true },
+      },
+      stored(true, false),
+      { method: 'PUT', match: CONTENT, respond: () => new Response(null, { status: 204 }) },
+      { method: 'GET', match: REVISIONS, json: [{ name: '42', date: '2026-09-14 12:00', author: 'admin' }] },
+    ]);
+
+    button('Save').click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Data successfully saved'));
+    button('Revisions').click();
+    await vi.waitFor(() => expect(document.querySelector('.revert-to-revision-button')).not.toBeNull());
+    document.querySelector<HTMLButtonElement>('.revert-to-revision-button')!.click();
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Reverted to revision 42'));
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain('Data successfully saved'));
+  });
+
   it('keeps the form when loading the defaults is not confirmed', async () => {
     await mount([stored(true, true)]);
 
