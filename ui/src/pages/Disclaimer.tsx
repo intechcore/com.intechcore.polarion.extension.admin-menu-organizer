@@ -6,7 +6,7 @@ import useRemote from '../services/useRemote';
 const PROJECT_URL = 'https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer';
 
 /**
- * Usage Disclaimer: the build-generated DISCLAIMER article, read from generic's `/disclaimer` endpoint.
+ * Disclaimer: the build-generated DISCLAIMER article, read from generic's `/disclaimer` endpoint.
  * The endpoint answers with an empty body when nothing was generated; that case points at the online
  * source.
  */
@@ -53,5 +53,5 @@ export default function Disclaimer() {
     content = <article className="markdown-body user-guide-page" dangerouslySetInnerHTML={{ __html: html }} />;
   }
 
-  return <PageLayout title="Usage Disclaimer">{content}</PageLayout>;
+  return <PageLayout title="Disclaimer">{content}</PageLayout>;
 }

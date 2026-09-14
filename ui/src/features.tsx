@@ -33,7 +33,7 @@ export const FEATURES: Feature[] = [
   },
   {
     id: 'disclaimer',
-    label: 'Usage Disclaimer',
+    label: 'Disclaimer',
     description: 'The problem this extension shows, what it does, and the risks of using it.',
     component: Disclaimer,
   },

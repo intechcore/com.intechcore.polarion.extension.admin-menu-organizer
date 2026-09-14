@@ -1,7 +1,7 @@
 # Admin Menu Organizer for Polarion ALM
 
 > [!IMPORTANT]
-> Read the [Usage Disclaimer](DISCLAIMER.md) before you use this extension. Use it in production at your own risk.
+> Read the [Disclaimer](DISCLAIMER.md) before you use this extension. Use it in production at your own risk.
 
 This Polarion extension keeps the entries of the Administration menu in a stable order.
 
