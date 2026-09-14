@@ -26,7 +26,7 @@ export default defineConfig(({ command, mode }) => {
 
   // Dedupe so the app and react-sbb-polarion resolve to a single React instance (a second copy gives
   // the "invalid hook call" failure).
-  const resolve = { dedupe: ['react', 'react-dom'] };
+  const resolve = { dedupe: ['react', 'react-dom', 'sonner'] };
 
   if (command === 'serve') {
     return {

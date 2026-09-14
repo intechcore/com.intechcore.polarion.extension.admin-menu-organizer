@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import About from './pages/About';
 import Disclaimer from './pages/Disclaimer';
+import MenuOrder from './pages/MenuOrder';
 
 /**
  * A single navigable page of the app. The `id` is what appears in the URL as `?feature=<id>` and is
@@ -18,6 +19,12 @@ export interface Feature {
 }
 
 export const FEATURES: Feature[] = [
+  {
+    id: 'menu-order',
+    label: 'Menu Order',
+    description: 'The ordering options of the Administration menu.',
+    component: MenuOrder,
+  },
   {
     id: 'about',
     label: 'About',

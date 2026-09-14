@@ -25,7 +25,7 @@ export default defineConfig({
   // consumed as a published tarball (React is a peer dependency there), but required the moment the
   // dependency is temporarily pointed at a local RSP checkout to iterate - otherwise the app and the
   // linked library get two Reacts and every hook throws "invalid hook call".
-  resolve: { dedupe: ['react', 'react-dom'] },
+  resolve: { dedupe: ['react', 'react-dom', 'sonner'] },
   // Pre-bundle these so Vite does not discover a new dependency mid-run and reload the browser page
   // (which intermittently fails a test file with "Vitest failed to find the runner"). Matters most on
   // a fresh `npm ci` in Docker where there is no warm dep-optimize cache.

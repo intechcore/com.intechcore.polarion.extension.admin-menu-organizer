@@ -9,6 +9,17 @@
 
          The REST API entry is not a page: it opens the generated Swagger UI in the REST webapp. -->
     <contribution configuration-id="com.polarion.xray.webui.administrationPageExtenders">
+        <extender id="menu-order"
+                  name="Menu Order"
+                  parentNodeId="admin-menu-organizer"
+                  parentNodeName="Admin Menu Organizer"
+                  parentNodeIconUrl="/polarion/admin-menu-organizer-app/ui/images/menu/30x30/_parent.svg"
+                  iconUrl="/polarion/admin-menu-organizer-app/ui/images/menu/16x16/menu_order.svg"
+                  pageUrl="/polarion/admin-menu-organizer-app/ui/app/index.html?feature=menu-order&amp;embedded=true&amp;scope=$scope$"
+                  projectScope="false"
+                  projectGroupScope="false"
+                  repositoryScope="true"/>
+
         <extender id="about"
                   name="About"
                   parentNodeId="admin-menu-organizer"

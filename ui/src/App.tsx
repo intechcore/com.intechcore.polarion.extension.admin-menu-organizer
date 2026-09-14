@@ -1,3 +1,4 @@
+import { Toaster } from '@sbb-polarion/react-sbb-polarion';
 import { findFeature } from './features';
 import Landing from './pages/Landing';
 
@@ -17,6 +18,7 @@ export default function App() {
 
   return (
     <div className="app standard-admin-page">
+      <Toaster />
       <Page />
     </div>
   );
