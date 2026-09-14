@@ -63,7 +63,9 @@ final class MenuOrderPlanner {
 
     /**
      * Groups the entries the way Polarion's menu does: a folder is identified by its name, and an entry
-     * that gives only the folder id joins the folder that another entry with the same id names.
+     * that gives only the folder id joins the folder that another entry with the same id names. Polarion
+     * places a folder where the first entry that names it is, so an entry giving only the id does not move
+     * the folder.
      */
     private static final class Folders {
         private final Map<Object, String> folderOfEntry = new IdentityHashMap<>();
@@ -95,8 +97,13 @@ final class MenuOrderPlanner {
                     label = Objects.requireNonNullElse(extender.getName(), "");
                 }
                 folderOfEntry.put(extender, folder);
-                firstIndexes.putIfAbsent(folder, i);
                 labels.putIfAbsent(folder, label);
+                if (isSet(extender.getParentNodeName())) {
+                    firstIndexes.putIfAbsent(folder, i);
+                }
+            }
+            for (int i = 0; i < entries.size(); i++) {
+                firstIndexes.putIfAbsent(folderOfEntry.get(entries.get(i)), i);
             }
         }
 

@@ -127,6 +127,34 @@ class MenuOrderPlannerTest {
         assertEquals(List.of(aaa, about, restApi), planned);
     }
 
+    /**
+     * Polarion places a folder where the first entry naming it is. An entry that gives only the folder id,
+     * such as a REST API page, can come earlier in Polarion's order and must not move the folder.
+     */
+    @RepeatedTest(REPETITIONS)
+    void keepsAFolderWhereItsFirstNamingEntryIsWhenAnEntryGivesOnlyItsId() {
+        List<AdministrationPageExtender> declared = List.of(
+                entry("pdf", null, "REST API"),
+                entry("pdf", "PDF Export", "About"),
+                entry("diff", null, "REST API"),
+                entry("diff", "Diff Tool", "About"),
+                entry("xml", null, "REST API"),
+                entry("xml", "XML Repair", "About"));
+        List<Object> polarionOrder = MenuOrderPlanner.polarionOrder(declared);
+
+        List<Object> planned = MenuOrderPlanner.plan(declared, false, true);
+
+        assertEquals(foldersAsPolarionPlacesThem(polarionOrder), foldersAsPolarionPlacesThem(planned));
+    }
+
+    private static List<String> foldersAsPolarionPlacesThem(List<?> entries) {
+        return new ArrayList<>(new LinkedHashSet<>(entries.stream()
+                .map(AdministrationPageExtender.class::cast)
+                .map(AdministrationPageExtender::getParentNodeName)
+                .filter(name -> name != null && !name.isEmpty())
+                .toList()));
+    }
+
     @RepeatedTest(REPETITIONS)
     void placesAnEntryGivingOnlyTheFolderNameInThatFolder() {
         AdministrationPageExtender about = entry("pdf", "PDF Export", "About");
