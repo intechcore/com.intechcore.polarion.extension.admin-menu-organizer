@@ -45,6 +45,8 @@
     </issueManagement>
 
     <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+
         <maven-jar-plugin.Extension-Context>admin-menu-organizer</maven-jar-plugin.Extension-Context>
         <maven-jar-plugin.Automatic-Module-Name>com.intechcore.polarion.extension.admin_menu_organizer</maven-jar-plugin.Automatic-Module-Name>
         <maven-jar-plugin.Discover-Base-Package>com.intechcore.polarion.extension.admin_menu_organizer</maven-jar-plugin.Discover-Base-Package>
