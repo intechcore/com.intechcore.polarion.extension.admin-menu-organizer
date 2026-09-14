@@ -55,6 +55,9 @@ public final class MenuOrderRestorer {
 
     private static final Logger logger = Logger.getLogger(MenuOrderRestorer.class);
 
+    /** Serializes this class's own writes to the provider's list. Polarion's readers never take it. */
+    private static final Object LOCK = new Object();
+
     private MenuOrderRestorer() {
     }
 
@@ -106,8 +109,8 @@ public final class MenuOrderRestorer {
 
         Outcome outcome;
         // The lock covers the already-ordered check too, so of two concurrent calls one does the work and
-        // the other finds it done. Polarion's readers never take this monitor, see restore(List, List).
-        synchronized (liveOrder) {
+        // the other finds it done. Polarion's readers never take it, see restore(List, List).
+        synchronized (LOCK) {
             if (atStartup) {
                 checkPolarionOrder(liveOrder, declaredOrder);
                 if (!foldersAlphabetically && !entriesInDeclarationOrder) {
