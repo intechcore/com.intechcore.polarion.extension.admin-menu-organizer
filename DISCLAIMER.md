@@ -10,10 +10,10 @@ Up to Polarion 2512, the menu followed the order in which each extension declare
 
 The extension changes the order of the menu entries that Polarion already loaded. It does not add entries and does not remove entries.
 
-By default, the extension changes nothing. An administrator can turn on two options:
+An administrator can set two options:
 
-* Sort the sections of extensions alphabetically.
-* Show the pages of each section in the order the extension declares them.
+* Show the pages of each section in the order the extension defines them. This option is on by default.
+* Sort the sections of extensions alphabetically. This option is off by default.
 
 When the administrator turns both options off, the menu returns to the order that Polarion built at startup.
 

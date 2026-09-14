@@ -99,7 +99,7 @@ class AdminMenuOrganizerAppServletTest {
         AdminMenuOrganizerAppServlet freshServlet = new AdminMenuOrganizerAppServlet();
 
         try (MockedStatic<MenuOrderRestorer> restorer = mockStatic(MenuOrderRestorer.class)) {
-            restorer.when(() -> MenuOrderRestorer.applyAtStartup(false, false))
+            restorer.when(() -> MenuOrderRestorer.applyAtStartup(false, true))
                     .thenThrow(new NoClassDefFoundError("com/polarion/alm/administration/web/server/AdministrationPageExtenderProvider"));
 
             Executable init = freshServlet::init;
@@ -125,9 +125,9 @@ class AdminMenuOrganizerAppServletTest {
         }
     }
 
-    /** At server start the repository may not answer yet; the menu must still be checked, with both modes off. */
+    /** At server start the repository may not answer yet; the menu must still be ordered, with the default modes. */
     @Test
-    void initTreatsUnreadableSettingsAsBothModesOff() {
+    void initUsesTheDefaultModesWhenTheSettingsAreUnreadable() {
         AdminMenuOrganizerAppServlet freshServlet = new AdminMenuOrganizerAppServlet();
 
         try (MockedConstruction<MenuOrderSettings> settings = mockConstruction(MenuOrderSettings.class,
@@ -136,7 +136,7 @@ class AdminMenuOrganizerAppServletTest {
             Executable init = freshServlet::init;
 
             assertDoesNotThrow(init);
-            restorer.verify(() -> MenuOrderRestorer.applyAtStartup(false, false));
+            restorer.verify(() -> MenuOrderRestorer.applyAtStartup(false, true));
         }
     }
 }

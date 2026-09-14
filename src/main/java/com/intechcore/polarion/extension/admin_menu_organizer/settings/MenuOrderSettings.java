@@ -29,7 +29,7 @@ public class MenuOrderSettings extends GenericNamedSettings<MenuOrderSettingsMod
 
     @Override
     public @NotNull MenuOrderSettingsModel defaultValues() {
-        return new MenuOrderSettingsModel();
+        return MenuOrderSettingsModel.defaults();
     }
 
     @Override

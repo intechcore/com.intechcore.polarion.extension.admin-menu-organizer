@@ -46,8 +46,8 @@ public class AdminMenuOrganizerAppServlet extends GenericUiServlet {
         try {
             return new MenuOrderSettings().readAsSystemUser();
         } catch (Exception e) {
-            logger.warn("Could not read the administration menu order settings, both modes are treated as off", e);
-            return new MenuOrderSettingsModel();
+            logger.warn("Could not read the administration menu order settings, the default modes are used", e);
+            return MenuOrderSettingsModel.defaults();
         }
     }
 }
