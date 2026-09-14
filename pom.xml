@@ -115,6 +115,12 @@
                 <artifactId>maven-jar-plugin</artifactId>
             </plugin>
 
+            <!-- Fails the build when the bundle or a nested jar refers to a package Polarion 2606 rejects. -->
+            <plugin>
+                <groupId>com.intechcore</groupId>
+                <artifactId>polarion-compatibility-maven-plugin</artifactId>
+            </plugin>
+
             <!-- Restates the parent's copy-vite-build execution with changeDetection, the documented
                  replacement of the deprecated `overwrite` flag. Maven merges plugin configuration, so
                  dropping one element takes overriding the block as a whole - keep the rest in step with
