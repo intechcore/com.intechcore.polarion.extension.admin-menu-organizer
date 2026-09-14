@@ -185,6 +185,7 @@
                     <outputFormat>JSON</outputFormat>
                     <resourcePackages>
                         <package>ch.sbb.polarion.extension.generic.rest.controller.info</package>
+                        <package>ch.sbb.polarion.extension.generic.rest.controller.settings</package>
                         <package>ch.sbb.polarion.extension.generic.rest.model</package>
                         <package>com.intechcore.polarion.extension.admin_menu_organizer.rest.controller</package>
                     </resourcePackages>

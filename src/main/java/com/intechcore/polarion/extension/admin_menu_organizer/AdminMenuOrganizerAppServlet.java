@@ -2,8 +2,11 @@ package com.intechcore.polarion.extension.admin_menu_organizer;
 
 import ch.sbb.polarion.extension.generic.GenericUiServlet;
 import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRestorer;
+import com.intechcore.polarion.extension.admin_menu_organizer.settings.MenuOrderSettings;
+import com.intechcore.polarion.extension.admin_menu_organizer.settings.MenuOrderSettingsModel;
 import com.polarion.core.util.logging.Logger;
 import jakarta.servlet.ServletException;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.Serial;
 
@@ -31,10 +34,20 @@ public class AdminMenuOrganizerAppServlet extends GenericUiServlet {
     public void init() throws ServletException {
         super.init();
         try {
-            MenuOrderRestorer.applyAtStartup(false, false);
+            MenuOrderSettingsModel modes = readModes();
+            MenuOrderRestorer.applyAtStartup(modes.isFoldersAlphabetically(), modes.isEntriesInDeclarationOrder());
         } catch (Exception | LinkageError e) {
             // The restorer guards its own body, but loading it can fail before that body runs.
             logger.warn("Could not apply the administration menu order", e);
+        }
+    }
+
+    private static @NotNull MenuOrderSettingsModel readModes() {
+        try {
+            return new MenuOrderSettings().readAsSystemUser();
+        } catch (Exception e) {
+            logger.warn("Could not read the administration menu order settings, both modes are treated as off", e);
+            return new MenuOrderSettingsModel();
         }
     }
 }

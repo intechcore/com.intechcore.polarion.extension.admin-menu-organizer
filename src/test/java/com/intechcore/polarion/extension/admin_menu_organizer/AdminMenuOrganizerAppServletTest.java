@@ -1,6 +1,8 @@
 package com.intechcore.polarion.extension.admin_menu_organizer;
 
 import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRestorer;
+import com.intechcore.polarion.extension.admin_menu_organizer.settings.MenuOrderSettings;
+import com.intechcore.polarion.extension.admin_menu_organizer.settings.MenuOrderSettingsModel;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -15,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -101,6 +105,38 @@ class AdminMenuOrganizerAppServletTest {
             Executable init = freshServlet::init;
 
             assertDoesNotThrow(init);
+        }
+    }
+
+    @Test
+    void initAppliesTheStoredModes() {
+        MenuOrderSettingsModel stored = new MenuOrderSettingsModel();
+        stored.setFoldersAlphabetically(true);
+        stored.setEntriesInDeclarationOrder(true);
+        AdminMenuOrganizerAppServlet freshServlet = new AdminMenuOrganizerAppServlet();
+
+        try (MockedConstruction<MenuOrderSettings> settings = mockConstruction(MenuOrderSettings.class,
+                (mock, context) -> when(mock.readAsSystemUser()).thenReturn(stored));
+             MockedStatic<MenuOrderRestorer> restorer = mockStatic(MenuOrderRestorer.class)) {
+            Executable init = freshServlet::init;
+
+            assertDoesNotThrow(init);
+            restorer.verify(() -> MenuOrderRestorer.applyAtStartup(true, true));
+        }
+    }
+
+    /** At server start the repository may not answer yet; the menu must still be checked, with both modes off. */
+    @Test
+    void initTreatsUnreadableSettingsAsBothModesOff() {
+        AdminMenuOrganizerAppServlet freshServlet = new AdminMenuOrganizerAppServlet();
+
+        try (MockedConstruction<MenuOrderSettings> settings = mockConstruction(MenuOrderSettings.class,
+                (mock, context) -> when(mock.readAsSystemUser()).thenThrow(new IllegalStateException("repository is not ready")));
+             MockedStatic<MenuOrderRestorer> restorer = mockStatic(MenuOrderRestorer.class)) {
+            Executable init = freshServlet::init;
+
+            assertDoesNotThrow(init);
+            restorer.verify(() -> MenuOrderRestorer.applyAtStartup(false, false));
         }
     }
 }
