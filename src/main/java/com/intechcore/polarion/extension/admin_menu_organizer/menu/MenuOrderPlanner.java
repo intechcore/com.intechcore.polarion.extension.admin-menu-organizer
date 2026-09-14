@@ -3,11 +3,13 @@ package com.intechcore.polarion.extension.admin_menu_organizer.menu;
 import com.polarion.alm.administration.web.server.AdministrationPageExtender;
 import org.jetbrains.annotations.NotNull;
 
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -42,7 +44,7 @@ final class MenuOrderPlanner {
         Folders folders = new Folders(polarionOrder);
         Comparator<Object> order;
         if (foldersAlphabetically) {
-            order = Comparator.<Object, String>comparing(folders::label, String.CASE_INSENSITIVE_ORDER).thenComparingInt(folders::firstIndex);
+            order = Comparator.<Object, String>comparing(folders::label, labelCollator()).thenComparingInt(folders::firstIndex);
         } else {
             order = Comparator.comparingInt(folders::firstIndex);
         }
@@ -51,6 +53,13 @@ final class MenuOrderPlanner {
         List<Object> planned = new ArrayList<>(polarionOrder);
         planned.sort(order.thenComparingInt(entryIndexes::get));
         return planned;
+    }
+
+    /** Compares folder names as a reader expects: the case is ignored, and an accented letter sorts next to its base letter. */
+    private static @NotNull Collator labelCollator() {
+        Collator collator = Collator.getInstance(Locale.ROOT);
+        collator.setStrength(Collator.SECONDARY);
+        return collator;
     }
 
     private static @NotNull Map<Object, Integer> indexes(@NotNull List<?> entries) {

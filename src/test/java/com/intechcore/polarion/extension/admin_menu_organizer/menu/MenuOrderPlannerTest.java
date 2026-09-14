@@ -105,6 +105,21 @@ class MenuOrderPlannerTest {
         }
     }
 
+    /** A plain case-insensitive comparison puts every accented name after Z. */
+    @RepeatedTest(REPETITIONS)
+    void ordersAnAccentedFolderNameNextToItsBaseLetter() {
+        AdministrationPageExtender zed = entry("zed", "Zed", "About");
+        AdministrationPageExtender overview = entry("overview", "Übersicht", "About");
+        AdministrationPageExtender tools = entry("tools", "tools", "About");
+        AdministrationPageExtender apples = entry("apples", "Äpfel", "About");
+        AdministrationPageExtender audit = entry("audit", "Audit Log", "About");
+        List<AdministrationPageExtender> declared = List.of(zed, overview, tools, apples, audit);
+
+        List<Object> planned = MenuOrderPlanner.plan(declared, true, true);
+
+        assertEquals(List.of(apples, audit, tools, overview, zed), planned);
+    }
+
     @RepeatedTest(REPETITIONS)
     void appliesBothModesTogether() {
         List<AdministrationPageExtender> declared = declared();
