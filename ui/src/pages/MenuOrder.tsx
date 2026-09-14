@@ -12,6 +12,13 @@ import useRemote from '../services/useRemote';
 
 const BOTH_OFF: MenuOrderModes = { foldersAlphabetically: false, entriesInDeclarationOrder: false };
 
+const LOAD_ERROR = 'Error occurred loading the data.';
+
+/** The message of a failed call, or the fallback when the call carries none. */
+function messageOf(error: unknown, fallback: string): string {
+  return (error as Error).message || fallback;
+}
+
 /** The Menu Order page: the two ordering modes of the Administration menu, in the global scope. */
 export default function MenuOrder() {
   const { sendRequest } = useRemote();
@@ -42,6 +49,12 @@ export default function MenuOrder() {
     };
   }, [service]);
 
+  /** Puts loaded modes into the form. A load that succeeds also clears the error of an earlier one. */
+  const showModes = (loadedModes: MenuOrderModes) => {
+    setModes(loadedModes);
+    setLoadingError(false);
+  };
+
   const handleSave = async () => {
     toast.dismiss();
     try {
@@ -49,17 +62,17 @@ export default function MenuOrder() {
       setRevisionsToken((t) => t + 1);
       toast.success('Data successfully saved. Reload the Polarion page to see the new menu order.');
     } catch (e) {
-      toast.error((e as Error).message || 'Error occurred during saving the data.');
+      toast.error(messageOf(e, 'Error occurred during saving the data.'));
     }
   };
 
   const handleCancel = async () => {
     if (!(await confirm('Are you sure you want to cancel editing and revert all changes made?'))) return;
+    toast.dismiss();
     try {
-      setModes(await service.loadModes());
-      toast.dismiss();
-    } catch {
-      setLoadingError(true);
+      showModes(await service.loadModes());
+    } catch (e) {
+      toast.error(messageOf(e, LOAD_ERROR));
     }
   };
 
@@ -67,19 +80,20 @@ export default function MenuOrder() {
     if (!(await confirm('Are you sure you want to return the default values?'))) return;
     toast.dismiss();
     try {
-      setModes(await service.loadDefaultModes());
+      showModes(await service.loadDefaultModes());
       toast.success('Reverted to the default values. Remember to save the configuration.');
-    } catch {
-      setLoadingError(true);
+    } catch (e) {
+      toast.error(messageOf(e, LOAD_ERROR));
     }
   };
 
   const handleRevertToRevision = async (revision: Revision) => {
+    toast.dismiss();
     try {
-      setModes(await service.loadModes(revision.name));
+      showModes(await service.loadModes(revision.name));
       toast.success(`Reverted to revision ${revision.name}. Don't forget to save.`);
-    } catch {
-      setLoadingError(true);
+    } catch (e) {
+      toast.error(messageOf(e, LOAD_ERROR));
     }
   };
 
