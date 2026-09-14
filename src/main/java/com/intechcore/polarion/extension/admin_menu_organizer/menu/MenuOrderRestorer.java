@@ -63,8 +63,8 @@ public final class MenuOrderRestorer {
      * reproduces the order Polarion built, because switching the modes off later relies on it. With both
      * modes off it then changes nothing.
      * <p>
-     * Requires Polarion's platform to be initialized. A servlet initialized at webapp startup satisfies
-     * that: {@code PlatformService.start()} builds the Guice injector before Tomcat is started.
+     * Requires Polarion's platform to be initialized. A webapp context listener satisfies that:
+     * {@code PlatformService.start()} builds the Guice injector before Tomcat is started.
      */
     public static void applyAtStartup(boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
         run(true, foldersAlphabetically, entriesInDeclarationOrder);
@@ -85,7 +85,7 @@ public final class MenuOrderRestorer {
             apply(provider, PlatformContext.getPlatform(), atStartup, foldersAlphabetically, entriesInDeclarationOrder);
         } catch (Exception | LinkageError e) {
             // Every Polarion type named here can move in a future release, and a failure must never take
-            // the calling servlet or request down with it.
+            // the webapp start or the request down with it.
             logger.warn("Administration menu order was not applied, Polarion's own order is kept", e);
         }
     }

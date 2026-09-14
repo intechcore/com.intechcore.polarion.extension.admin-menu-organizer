@@ -335,8 +335,8 @@ class MenuOrderRestorerTest {
     }
 
     /**
-     * The entry points are called from the servlet's init() and from a settings save, where an exception
-     * would fail the page or the request. Outside a running Polarion every reflective step fails, and they
+     * The entry points are called from the startup listener and from a settings save, where an exception
+     * would fail the webapp start or the request. Outside a running Polarion every reflective step fails, and they
      * still must not throw.
      */
     @Test

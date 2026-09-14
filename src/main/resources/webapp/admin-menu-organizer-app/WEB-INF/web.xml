@@ -16,6 +16,11 @@
         <url-pattern>/*</url-pattern>
     </filter-mapping>
 
+    <!-- Applies the stored administration menu order once per server start. -->
+    <listener>
+        <listener-class>com.intechcore.polarion.extension.admin_menu_organizer.MenuOrderStartupListener</listener-class>
+    </listener>
+
     <servlet>
         <servlet-name>admin-menu-organizer-app</servlet-name>
         <servlet-class>com.intechcore.polarion.extension.admin_menu_organizer.AdminMenuOrganizerAppServlet</servlet-class>
