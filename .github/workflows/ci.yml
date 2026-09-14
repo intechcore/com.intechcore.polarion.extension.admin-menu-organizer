@@ -49,3 +49,26 @@ jobs:
           name: extension-jar
           path: target/*.jar
           if-no-files-found: error
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      # The same Node.js version that generic installs for the UI build.
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install the UI dependencies
+        run: npm ci --prefix ui
+      - name: Install pre-commit
+        run: pipx install pre-commit==4.6.1
+      - name: Run the hooks
+        env:
+          # no-commit-to-branch fails on main. check-git-config-user-email needs a local identity.
+          # The build job already runs the Docker UI tests.
+          SKIP: no-commit-to-branch,check-git-config-user-email,ui-test-coverage-docker
+        run: pre-commit run --all-files --show-diff-on-failure
