@@ -33,10 +33,10 @@ Changes take effect only after a restart of Polarion.
 
 The extension adds the **Admin Menu Organizer** section to the Administration menu of the global scope. The section is not available in projects, because the menu it organizes is one list for the whole server.
 
-Open **Administration > Admin Menu Organizer > Menu Order** to set the options:
+By default, the extension changes nothing. Open **Administration > Admin Menu Organizer > Menu Order** to turn on one or both options:
 
-* **Pages in the order the extension defines them.** On by default.
-* **Sections in alphabetical order.** Off by default.
+* **Sort the sections of extensions alphabetically.**
+* **Show the pages of each section in the order the extension declares them.**
 
 Saving applies the order at once. Reload the Polarion page to see it. When both options are off again, the menu returns to the order that Polarion built at startup. The extension also applies the saved options each time Polarion starts.
 

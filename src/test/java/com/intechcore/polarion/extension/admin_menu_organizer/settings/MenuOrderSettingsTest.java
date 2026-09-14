@@ -23,11 +23,11 @@ import static org.mockito.Mockito.verifyNoInteractions;
 class MenuOrderSettingsTest {
 
     @Test
-    void ordersThePagesByDeclarationAndKeepsTheSectionsByDefault() {
+    void keepsPolarionsOrderByDefault() {
         MenuOrderSettingsModel defaults = new MenuOrderSettings(mock(SettingsService.class)).defaultValues();
 
         assertFalse(defaults.isFoldersAlphabetically());
-        assertTrue(defaults.isEntriesInDeclarationOrder());
+        assertFalse(defaults.isEntriesInDeclarationOrder());
     }
 
     @Test

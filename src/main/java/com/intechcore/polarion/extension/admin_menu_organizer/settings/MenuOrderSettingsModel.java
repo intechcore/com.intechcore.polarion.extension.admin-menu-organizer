@@ -4,9 +4,8 @@ import ch.sbb.polarion.extension.generic.settings.SettingsModel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.jetbrains.annotations.NotNull;
 
-/** The two ordering modes of the administration menu. */
+/** The two ordering modes of the administration menu. Both are off by default, which changes nothing. */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,13 +16,6 @@ public class MenuOrderSettingsModel extends SettingsModel {
 
     private boolean foldersAlphabetically;
     private boolean entriesInDeclarationOrder;
-
-    /** The modes of a server with no stored setting: pages in declaration order, sections where Polarion put them. */
-    public static @NotNull MenuOrderSettingsModel defaults() {
-        MenuOrderSettingsModel defaults = new MenuOrderSettingsModel();
-        defaults.setEntriesInDeclarationOrder(true);
-        return defaults;
-    }
 
     @Override
     protected String serializeModelData() {
