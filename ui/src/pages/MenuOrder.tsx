@@ -104,28 +104,33 @@ export default function MenuOrder() {
           <label>
             <input
               type="checkbox"
-              name="foldersAlphabetically"
-              checked={modes.foldersAlphabetically}
-              onChange={(e) => setModes((prev) => ({ ...prev, foldersAlphabetically: e.target.checked }))}
+              name="entriesInDeclarationOrder"
+              checked={modes.entriesInDeclarationOrder}
+              onChange={(e) => setModes((prev) => ({ ...prev, entriesInDeclarationOrder: e.target.checked }))}
             />
-            Sort the sections of extensions alphabetically
+            Pages in the order the extension defines them
           </label>
+          <p className="menu-order-mode-description">
+            Inside each section, the pages keep the order that the extension defines. Without this option, Polarion
+            shows them in a different order after each restart.
+          </p>
         </div>
         <div className="menu-order-mode">
           <label>
             <input
               type="checkbox"
-              name="entriesInDeclarationOrder"
-              checked={modes.entriesInDeclarationOrder}
-              onChange={(e) => setModes((prev) => ({ ...prev, entriesInDeclarationOrder: e.target.checked }))}
+              name="foldersAlphabetically"
+              checked={modes.foldersAlphabetically}
+              onChange={(e) => setModes((prev) => ({ ...prev, foldersAlphabetically: e.target.checked }))}
             />
-            Show the pages of each section in the order the extension declares them
+            Sections in alphabetical order
           </label>
+          <p className="menu-order-mode-description">
+            The sections of all extensions appear from A to Z. Without this option, the sections stay where Polarion put
+            them at startup.
+          </p>
         </div>
-        <p className="menu-order-hint">
-          With both options off, the menu keeps the order that Polarion built at startup. Saving applies the order at
-          once: reload the Polarion page to see it.
-        </p>
+        <p className="menu-order-hint">Saving applies the order at once. Reload the Polarion page to see it.</p>
 
         <ConfigurationButtons
           onSave={handleSave}

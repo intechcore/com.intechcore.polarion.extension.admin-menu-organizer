@@ -103,10 +103,14 @@ code {
    @sbb-polarion/react-sbb-polarion component; its styles ship in the lib's bundled style.css. */
 
 .menu-order-mode {
-  margin: 8px 0;
+  margin: 12px 0;
+}
+
+.menu-order-mode-description {
+  color: var(--en-muted);
+  margin: 4px 0 0 22px;
 }
 
 .menu-order-hint {
-  color: var(--en-muted);
-  margin: 12px 0 16px;
+  margin: 16px 0;
 }
