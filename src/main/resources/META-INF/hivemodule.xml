@@ -23,7 +23,7 @@
         <extender id="disclaimer"
                   name="Disclaimer"
                   parentNodeId="admin-menu-organizer"
-                  iconUrl="/polarion/admin-menu-organizer-app/ui/images/menu/16x16/about.svg"
+                  iconUrl="/polarion/admin-menu-organizer-app/ui/images/menu/16x16/disclaimer.svg"
                   pageUrl="/polarion/admin-menu-organizer-app/ui/app/index.html?feature=disclaimer&amp;embedded=true&amp;scope=$scope$"
                   projectScope="false"
                   projectGroupScope="false"
