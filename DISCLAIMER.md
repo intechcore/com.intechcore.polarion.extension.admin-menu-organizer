@@ -19,6 +19,5 @@ When the administrator turns both options off, the menu returns to the order tha
 
 ## Why it is risky
 
-* The extension uses internal parts of Polarion that are not a public API: a private field of the menu provider and the HiveMind registry.
-* A future Polarion release can change these parts. The extension then writes a warning to the log and leaves the menu as Polarion built it.
+* A future Polarion release can change how it builds the Administration menu. The extension then writes a warning to the log and leaves the menu as Polarion built it.
 * The extension changes the menu while Polarion is running. For a very short time, a user can see one menu page twice. The next page load shows the correct menu.
