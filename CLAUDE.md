@@ -75,10 +75,14 @@ Two layers: a Java/Polarion backend and a React frontend.
 
 **Java** (`src/main/java/.../admin_menu_organizer/`)
 
-- `menu/MenuOrderRestorer` - the whole trick. It reads the administration page extenders that
-  Polarion loaded and rewrites their order in place. Everything it touches is guarded: an
-  unexpected shape is logged **once** as a warning and the menu is left as Polarion built it. Its
-  `LOCK` is deliberately a private static field, not a shared one.
+- `menu/MenuOrderRestorer` - the whole trick. It reads the menu configuration from the HiveMind
+  registry, which still holds it in declaration order, and writes the planned order back through
+  `AdministrationPageExtenderProvider.setAdministrationPageExtenders(Set)`. Both steps use public
+  Polarion API, so **the class holds no reflection**: a signature that changes in a future Polarion
+  breaks the build instead of a customer's menu. The setter keeps the iteration order of the set it
+  receives, which `MenuOrderRestorerTest` pins against the real Polarion class. Everything it
+  touches is guarded: an unexpected shape is logged **once** as a warning and the menu is left as
+  Polarion built it. Its `LOCK` is deliberately a private static field, not a shared one.
 - `menu/MenuOrderPlanner` - the pure part: given the extenders and the two flags, it computes the
   order. Sections sort through a `Collator` with `SECONDARY` strength, so the order does not depend
   on the platform locale. This is where the 501 unit tests live.
