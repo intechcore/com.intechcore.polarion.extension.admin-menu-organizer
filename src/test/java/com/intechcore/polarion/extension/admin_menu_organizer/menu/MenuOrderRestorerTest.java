@@ -4,11 +4,12 @@ import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRest
 import com.polarion.alm.administration.web.server.AdministrationPageExtender;
 import com.polarion.alm.administration.web.server.AdministrationPageExtenderProvider;
 import com.polarion.platform.core.IPlatform;
+import com.polarion.platform.hivemind.IHiveMindPlatform;
+import org.apache.hivemind.Registry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -21,6 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class MenuOrderRestorerTest {
 
@@ -231,45 +235,18 @@ class MenuOrderRestorerTest {
 
     // --- The reflective half: the paths that break on a Polarion upgrade ---
 
-    /** Stands in for the platform: {@code IPlatform} declares one method, the rest is found by name. */
-    static final class FakePlatform implements IPlatform {
-        private final Object registry;
-
-        FakePlatform(Object registry) {
-            this.registry = registry;
-        }
-
-        @Override
-        public <T> T lookupService(Class<T> serviceClass) {
-            return null;
-        }
-
-        public Object getRegistry() {
-            return registry;
-        }
+    /** A platform carrying a HiveMind registry, which is where the declared order lives. */
+    private static IHiveMindPlatform platformWith(Registry registry) {
+        IHiveMindPlatform platform = mock(IHiveMindPlatform.class);
+        when(platform.getRegistry()).thenReturn(registry);
+        return platform;
     }
 
-    /** Stands in for the HiveMind registry, recording which configuration point was asked for. */
-    static final class FakeRegistry {
-        private final Object configuration;
-        private String requestedId;
-
-        FakeRegistry(Object configuration) {
-            this.configuration = configuration;
-        }
-
-        public Object getConfiguration(String configurationPointId) {
-            this.requestedId = configurationPointId;
-            return configuration;
-        }
-    }
-
-    /** A platform without the registry accessor, standing in for a future Polarion that drops it. */
-    static final class PlatformWithoutRegistry implements IPlatform {
-        @Override
-        public <T> T lookupService(Class<T> serviceClass) {
-            return null;
-        }
+    /** A registry answering the administration menu configuration point with the given entries. */
+    private static Registry registryHolding(List<?> configuration) {
+        Registry registry = mock(Registry.class);
+        when(registry.getConfiguration(MenuOrderRestorer.CONFIG_ID)).thenReturn(configuration);
+        return registry;
     }
 
     @Test
@@ -289,48 +266,36 @@ class MenuOrderRestorerTest {
     }
 
     @Test
-    void readsTheDeclaredOrderFromTheRegistry() throws Exception {
+    void readsTheDeclaredOrderFromTheRegistry() {
         List<Object> configuration = List.of(realExtender("about"), realExtender("css"));
-        FakeRegistry registry = new FakeRegistry(configuration);
+        Registry registry = registryHolding(configuration);
 
-        List<?> declaredOrder = MenuOrderRestorer.readDeclaredOrder(new FakePlatform(registry));
+        List<?> declaredOrder = MenuOrderRestorer.readDeclaredOrder(platformWith(registry));
 
         assertSame(configuration, declaredOrder);
         // Asking for the wrong configuration point would silently return someone else's entries.
-        assertEquals(MenuOrderRestorer.CONFIG_ID, registry.requestedId);
+        verify(registry).getConfiguration(MenuOrderRestorer.CONFIG_ID);
+    }
+
+    /** A platform that is not a HiveMind one stands in for a future Polarion without that registry. */
+    @Test
+    void readsNoDeclaredOrderWithoutAHiveMindRegistry() {
+        assertNull(MenuOrderRestorer.readDeclaredOrder(mock(IPlatform.class)));
+        assertNull(MenuOrderRestorer.readDeclaredOrder(platformWith(null)));
     }
 
     @Test
-    void readsNoDeclaredOrderWhenThePlatformHasNoRegistry() throws Exception {
-        assertNull(MenuOrderRestorer.readDeclaredOrder(new PlatformWithoutRegistry()));
-    }
-
-    @Test
-    void readsNoDeclaredOrderWhenTheRegistryIsMissingOrUnusable() throws Exception {
-        assertNull(MenuOrderRestorer.readDeclaredOrder(new FakePlatform(null)));
+    void readsNoDeclaredOrderWhenTheConfigurationIsEmpty() {
         // An empty configuration means the entries are not there to reorder, not that the order is empty.
-        assertNull(MenuOrderRestorer.readDeclaredOrder(new FakePlatform(new FakeRegistry(List.of()))));
-        assertNull(MenuOrderRestorer.readDeclaredOrder(new FakePlatform(new FakeRegistry("not a list"))));
-        // A registry that no longer answers getConfiguration(String) at all.
-        assertNull(MenuOrderRestorer.readDeclaredOrder(new FakePlatform(new Object())));
+        assertNull(MenuOrderRestorer.readDeclaredOrder(platformWith(registryHolding(List.of()))));
     }
 
     /** Only extenders may reach the provider's list, so a configuration holding anything else is not used. */
     @Test
-    void readsNoDeclaredOrderWhenTheConfigurationHoldsOtherTypes() throws Exception {
+    void readsNoDeclaredOrderWhenTheConfigurationHoldsOtherTypes() {
         List<Object> mixed = List.of(realExtender("about"), "not an extender");
 
-        assertNull(MenuOrderRestorer.readDeclaredOrder(new FakePlatform(new FakeRegistry(mixed))));
-    }
-
-    @Test
-    void findsAMethodAndReportsAMissingOneAsNull() {
-        Method found = MenuOrderRestorer.findMethod(FakeRegistry.class, "getConfiguration", String.class);
-
-        assertNotNull(found);
-        assertEquals("getConfiguration", found.getName());
-        assertNull(MenuOrderRestorer.findMethod(FakeRegistry.class, "getConfiguration"));
-        assertNull(MenuOrderRestorer.findMethod(FakeRegistry.class, "noSuchMethod"));
+        assertNull(MenuOrderRestorer.readDeclaredOrder(platformWith(registryHolding(mixed))));
     }
 
     /**
@@ -401,7 +366,7 @@ class MenuOrderRestorerTest {
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, webhooks, about)));
 
-        MenuOrderRestorer.apply(provider, new FakePlatform(new FakeRegistry(List.of(about, css, webhooks))), false, false, true);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css, webhooks))), false, false, true);
 
         assertEquals("ext/about, ext/css, ext/webhooks", MenuOrderRestorer.describe(liveOrderOf(provider)));
     }
@@ -411,7 +376,7 @@ class MenuOrderRestorerTest {
         List<AdministrationPageExtender> declaredOrder = List.of(realExtender("a"), realExtender("b"), realExtender("c"), realExtender("d"), realExtender("e"));
         AdministrationPageExtenderProvider provider = providerFilledByPolarion(declaredOrder);
         List<Object> polarionOrder = new ArrayList<>(liveOrderOf(provider));
-        IPlatform platform = new FakePlatform(new FakeRegistry(declaredOrder));
+        IPlatform platform = platformWith(registryHolding(declaredOrder));
 
         MenuOrderRestorer.apply(provider, platform, false, false, true);
         assertEquals(List.copyOf(declaredOrder), liveOrderOf(provider));
@@ -428,7 +393,7 @@ class MenuOrderRestorerTest {
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, about)));
         List<Object> before = new ArrayList<>(liveOrderOf(provider));
 
-        MenuOrderRestorer.apply(provider, new FakePlatform(new FakeRegistry(List.of(about, css))), true, false, false);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css))), true, false, false);
 
         assertEquals(before, liveOrderOf(provider));
     }
@@ -440,7 +405,7 @@ class MenuOrderRestorerTest {
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, about)));
 
-        MenuOrderRestorer.apply(provider, new FakePlatform(new FakeRegistry(List.of(about, css))), true, false, true);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css))), true, false, true);
 
         assertEquals("ext/about, ext/css", MenuOrderRestorer.describe(liveOrderOf(provider)));
     }
@@ -451,7 +416,7 @@ class MenuOrderRestorerTest {
         AdministrationPageExtender css = realExtender("css");
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, about)));
-        IPlatform platform = new FakePlatform(new FakeRegistry(List.of(about, css)));
+        IPlatform platform = platformWith(registryHolding(List.of(about, css)));
 
         MenuOrderRestorer.apply(provider, platform, false, true, true);
         List<Object> afterFirstRun = new ArrayList<>(liveOrderOf(provider));
@@ -467,7 +432,7 @@ class MenuOrderRestorerTest {
         // Same ids, different instances: this is not Polarion's own list and must not be applied.
         List<Object> foreignOrder = List.of(realExtender("about"), realExtender("css"));
 
-        MenuOrderRestorer.apply(provider, new FakePlatform(new FakeRegistry(foreignOrder)), false, true, true);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(foreignOrder)), false, true, true);
 
         assertEquals("ext/css, ext/about", MenuOrderRestorer.describe(liveOrderOf(provider)));
     }
@@ -477,7 +442,7 @@ class MenuOrderRestorerTest {
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(realExtender("css"), realExtender("about"))));
 
-        MenuOrderRestorer.apply(provider, new PlatformWithoutRegistry(), false, true, true);
+        MenuOrderRestorer.apply(provider, mock(IPlatform.class), false, true, true);
 
         assertEquals("ext/css, ext/about", MenuOrderRestorer.describe(liveOrderOf(provider)));
     }
@@ -513,6 +478,6 @@ class MenuOrderRestorerTest {
 
         assertNull(MenuOrderRestorer.readLiveOrder(provider));
         assertDoesNotThrow(() -> MenuOrderRestorer.apply(
-                provider, new FakePlatform(new FakeRegistry(List.of(realExtender("about")))), false, true, true));
+                provider, platformWith(registryHolding(List.of(realExtender("about")))), false, true, true));
     }
 }

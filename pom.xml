@@ -56,6 +56,11 @@
 
         <web.app.name>${maven-jar-plugin.Extension-Context}</web.app.name>
 
+        <!-- The declared order of the administration menu is read from the HiveMind registry through
+             IHiveMindPlatform.getRegistry(), so both bundles have to be resolvable at runtime. -->
+        <maven-jar-plugin.Require-Bundle.extension>com.polarion.platform.hivemind,org.apache.hivemind</maven-jar-plugin.Require-Bundle.extension>
+        <maven-jar-plugin.Require-Bundle>${maven-jar-plugin.Require-Bundle.common},${maven-jar-plugin.Require-Bundle.extension}</maven-jar-plugin.Require-Bundle>
+
         <markdown2html-maven-plugin.failOnError>true</markdown2html-maven-plugin.failOnError>
         <markdown2html-maven-plugin.disclaimer.outputFile>${markdown2html-maven-plugin.extensionContextAdminHtml}/disclaimer.html</markdown2html-maven-plugin.disclaimer.outputFile>
     </properties>
@@ -73,6 +78,23 @@
             <version>${project.parent.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
+        </dependency>
+
+        <!-- Polarion supplies both at runtime as OSGi bundles (see Require-Bundle above), so they are
+             compiled against but never packaged. They carry IHiveMindPlatform and the HiveMind Registry,
+             which hold the administration menu configuration in its declared order. -->
+        <dependency>
+            <groupId>com.polarion.platform.hivemind</groupId>
+            <artifactId>platform-hivemind</artifactId>
+            <version>${polarion.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.hivemind</groupId>
+            <artifactId>hivemind-1.1.1</artifactId>
+            <version>${polarion.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
