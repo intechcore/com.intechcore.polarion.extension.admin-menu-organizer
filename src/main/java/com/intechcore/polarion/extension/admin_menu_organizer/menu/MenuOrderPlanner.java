@@ -32,31 +32,34 @@ final class MenuOrderPlanner {
 
     /**
      * Polarion's order with the requested modes applied. A folder moves as a whole: by its name when
-     * {@code foldersAlphabetically} is set, otherwise to where its first entry is in Polarion's order. An
-     * entry outside any folder is placed the same way, by its own name.
+     * {@link MenuOrderModes#foldersAlphabetically()} is set, otherwise to where its first entry is in
+     * Polarion's order. An entry outside any folder is placed the same way, by its own name.
      */
     static @NotNull List<AdministrationPageExtender> plan(@NotNull List<AdministrationPageExtender> declaredOrder,
-                                                          boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
+                                                          @NotNull MenuOrderModes modes) {
         List<AdministrationPageExtender> polarionOrder = polarionOrder(declaredOrder);
-        if (!foldersAlphabetically && !entriesInDeclarationOrder) {
+        if (modes.polarionsOwnOrder()) {
             return polarionOrder;
         }
 
         Folders folders = new Folders(polarionOrder);
         Comparator<AdministrationPageExtender> order;
-        if (foldersAlphabetically) {
+        if (modes.foldersAlphabetically()) {
             order = Comparator.<AdministrationPageExtender, String>comparing(folders::label, labelCollator()).thenComparingInt(folders::firstIndex);
         } else {
             order = Comparator.comparingInt(folders::firstIndex);
         }
-        Map<AdministrationPageExtender, Integer> entryIndexes = indexes(entriesInDeclarationOrder ? declaredOrder : polarionOrder);
+        Map<AdministrationPageExtender, Integer> entryIndexes = indexes(modes.entriesInDeclarationOrder() ? declaredOrder : polarionOrder);
 
         List<AdministrationPageExtender> planned = new ArrayList<>(polarionOrder);
         planned.sort(order.thenComparingInt(entryIndexes::get));
         return planned;
     }
 
-    /** Compares folder names as a reader expects: the case is ignored, and an accented letter sorts next to its base letter. */
+    /**
+     * Compares folder names as a reader expects: the case is ignored, and an accented letter sorts next
+     * to its base letter. A new instance per call is deliberate, {@link Collator} is not thread safe.
+     */
     private static @NotNull Collator labelCollator() {
         Collator collator = Collator.getInstance(Locale.ROOT);
         collator.setStrength(Collator.SECONDARY);

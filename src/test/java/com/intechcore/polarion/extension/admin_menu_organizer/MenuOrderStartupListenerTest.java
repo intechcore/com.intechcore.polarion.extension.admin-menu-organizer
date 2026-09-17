@@ -1,5 +1,6 @@
 package com.intechcore.polarion.extension.admin_menu_organizer;
 
+import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderModes;
 import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRestorer;
 import com.intechcore.polarion.extension.admin_menu_organizer.settings.MenuOrderSettings;
 import com.intechcore.polarion.extension.admin_menu_organizer.settings.MenuOrderSettingsModel;
@@ -35,7 +36,7 @@ class MenuOrderStartupListenerTest {
     @Test
     void survivesAFailingMenuOrderApply() {
         try (MockedStatic<MenuOrderRestorer> restorer = mockStatic(MenuOrderRestorer.class)) {
-            restorer.when(() -> MenuOrderRestorer.applyAtStartup(false, false))
+            restorer.when(() -> MenuOrderRestorer.applyAtStartup(new MenuOrderModes(false, false)))
                     .thenThrow(new NoClassDefFoundError("com/polarion/alm/administration/web/server/AdministrationPageExtenderProvider"));
 
             Executable start = () -> listener.contextInitialized(event);
@@ -56,7 +57,7 @@ class MenuOrderStartupListenerTest {
             Executable start = () -> listener.contextInitialized(event);
 
             assertDoesNotThrow(start);
-            restorer.verify(() -> MenuOrderRestorer.applyAtStartup(true, true));
+            restorer.verify(() -> MenuOrderRestorer.applyAtStartup(new MenuOrderModes(true, true)));
         }
     }
 
@@ -69,7 +70,7 @@ class MenuOrderStartupListenerTest {
             Executable start = () -> listener.contextInitialized(event);
 
             assertDoesNotThrow(start);
-            restorer.verify(() -> MenuOrderRestorer.applyAtStartup(false, false));
+            restorer.verify(() -> MenuOrderRestorer.applyAtStartup(new MenuOrderModes(false, false)));
         }
     }
 }

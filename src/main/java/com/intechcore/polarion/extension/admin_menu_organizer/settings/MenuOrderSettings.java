@@ -46,7 +46,7 @@ public class MenuOrderSettings extends GenericNamedSettings<MenuOrderSettingsMod
 
     @Override
     public void afterSave(@NotNull MenuOrderSettingsModel what) {
-        MenuOrderRestorer.apply(what.isFoldersAlphabetically(), what.isEntriesInDeclarationOrder());
+        MenuOrderRestorer.apply(what.modes());
     }
 
     /**
@@ -57,7 +57,7 @@ public class MenuOrderSettings extends GenericNamedSettings<MenuOrderSettingsMod
     public void delete(@NotNull String scope, @NotNull SettingId id) {
         super.delete(scope, id);
         MenuOrderSettingsModel stored = read(DEFAULT_SCOPE, SettingId.fromName(DEFAULT_NAME), null);
-        MenuOrderRestorer.apply(stored.isFoldersAlphabetically(), stored.isEntriesInDeclarationOrder());
+        MenuOrderRestorer.apply(stored.modes());
     }
 
     /** Reads the stored modes as the system user: at server start there is no user session to read them with. */

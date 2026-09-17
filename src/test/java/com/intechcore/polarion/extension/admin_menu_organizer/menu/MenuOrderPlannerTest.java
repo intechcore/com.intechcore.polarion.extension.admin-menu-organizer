@@ -67,7 +67,7 @@ class MenuOrderPlannerTest {
     void keepsPolarionsOrderWithBothModesOff() {
         List<AdministrationPageExtender> declared = declared();
 
-        assertEquals(MenuOrderPlanner.polarionOrder(declared), MenuOrderPlanner.plan(declared, false, false));
+        assertEquals(MenuOrderPlanner.polarionOrder(declared), MenuOrderPlanner.plan(declared, new MenuOrderModes(false, false)));
     }
 
     @Test
@@ -82,7 +82,7 @@ class MenuOrderPlannerTest {
         List<AdministrationPageExtender> declared = declared();
         List<AdministrationPageExtender> polarionOrder = MenuOrderPlanner.polarionOrder(declared);
 
-        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, false, true);
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(false, true));
 
         assertContiguousFolders(planned);
         assertEquals(folders(polarionOrder), folders(planned));
@@ -96,7 +96,7 @@ class MenuOrderPlannerTest {
         List<AdministrationPageExtender> declared = declared();
         List<AdministrationPageExtender> polarionOrder = MenuOrderPlanner.polarionOrder(declared);
 
-        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, true, false);
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(true, false));
 
         assertContiguousFolders(planned);
         assertEquals(List.of("Audit Log", "diff tool", "PDF Export"), folders(planned));
@@ -115,7 +115,7 @@ class MenuOrderPlannerTest {
         AdministrationPageExtender audit = entry("audit", "Audit Log", "About");
         List<AdministrationPageExtender> declared = List.of(zed, overview, tools, apples, audit);
 
-        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, true, true);
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(true, true));
 
         assertEquals(List.of(apples, audit, tools, overview, zed), planned);
     }
@@ -124,7 +124,7 @@ class MenuOrderPlannerTest {
     void appliesBothModesTogether() {
         List<AdministrationPageExtender> declared = declared();
 
-        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, true, true);
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(true, true));
 
         assertEquals(List.of(declared.get(5), declared.get(3), declared.get(4), declared.get(0), declared.get(1), declared.get(2)), planned);
     }
@@ -137,7 +137,7 @@ class MenuOrderPlannerTest {
         AdministrationPageExtender aaa = entry("aaa", "AAA", "About");
         List<AdministrationPageExtender> declared = List.of(about, restApi, aaa);
 
-        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, true, true);
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(true, true));
 
         assertEquals(List.of(aaa, about, restApi), planned);
     }
@@ -157,7 +157,7 @@ class MenuOrderPlannerTest {
                 entry("xml", "XML Repair", "About"));
         List<AdministrationPageExtender> polarionOrder = MenuOrderPlanner.polarionOrder(declared);
 
-        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, false, true);
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(false, true));
 
         assertEquals(foldersAsPolarionPlacesThem(polarionOrder), foldersAsPolarionPlacesThem(planned));
     }
@@ -177,7 +177,7 @@ class MenuOrderPlannerTest {
         AdministrationPageExtender zed = entry("zed", "Zed", "About");
         List<AdministrationPageExtender> declared = List.of(about, zed, guide);
 
-        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, true, true);
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(true, true));
 
         assertEquals(List.of(about, guide, zed), planned);
     }
@@ -189,7 +189,7 @@ class MenuOrderPlannerTest {
         AdministrationPageExtender other = entry("abc", "Abc", "About");
         List<AdministrationPageExtender> declared = List.of(first, other, second);
 
-        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, true, true);
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(true, true));
 
         assertEquals(List.of(other, first, second), planned);
     }
@@ -200,7 +200,7 @@ class MenuOrderPlannerTest {
 
         for (boolean folders : new boolean[]{false, true}) {
             for (boolean entries : new boolean[]{false, true}) {
-                List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, folders, entries);
+                List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(folders, entries));
                 assertEquals(declared.size(), planned.size());
                 assertEquals(Set.copyOf(declared), Set.copyOf(planned));
             }
