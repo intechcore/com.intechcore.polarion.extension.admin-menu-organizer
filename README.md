@@ -45,13 +45,3 @@ In a Polarion cluster, saving applies the order only on the node that handles th
 ## REST API
 
 This extension provides a REST API. Its OpenAPI specification can be obtained [here](docs/openapi.json).
-
-## Release
-
-Releases are published by GitHub Actions.
-
-1. Run the **Bump Version & Release** workflow on `main` and choose `patch`, `minor` or `major`. It sets the release version in `pom.xml`, commits it and pushes the tag `v<version>`.
-2. The **Release** workflow builds and tests that tag, then attaches the jars to a GitHub release.
-3. A second job returns `main` to the next `-SNAPSHOT` version.
-
-Nothing is published to a Maven repository yet.
