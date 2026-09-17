@@ -19,8 +19,7 @@ public class MenuOrderStartupListener implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent event) {
         try {
-            MenuOrderSettingsModel modes = readModes();
-            MenuOrderRestorer.applyAtStartup(modes.isFoldersAlphabetically(), modes.isEntriesInDeclarationOrder());
+            MenuOrderRestorer.applyAtStartup(readModes().modes());
         } catch (Exception | LinkageError e) {
             // The restorer guards its own body, but loading it can fail before that body runs.
             logger.warn("Could not apply the administration menu order", e);

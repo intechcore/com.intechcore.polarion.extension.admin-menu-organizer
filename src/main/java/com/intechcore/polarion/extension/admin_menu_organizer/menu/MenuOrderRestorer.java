@@ -31,17 +31,21 @@ import java.util.stream.Collectors;
  * <p>
  * The HiveMind registry still holds the configuration in declaration order. This class reads it, lets
  * {@link MenuOrderPlanner} compute the order, and hands the result back through
- * {@link AdministrationPageExtenderProvider#setAdministrationPageExtenders(Set)}, the same public setter
- * Polarion injects through. The setter copies its argument into a list of its own, so a
- * {@link LinkedHashSet} in the planned order becomes the menu order. Nothing is added and nothing is
- * removed: {@link MenuOrderPlanner} only permutes the entries it is given.
+ * {@link AdministrationPageExtenderProvider#setAdministrationPageExtenders(Set)}, the setter Polarion
+ * injects through. The setter copies its argument into a list of its own, so a {@link LinkedHashSet} in
+ * the planned order becomes the menu order. Nothing is added and nothing is removed:
+ * {@link MenuOrderPlanner} only permutes the entries it is given.
  * <p>
- * Every Polarion member used here is public: {@link IHiveMindPlatform#getRegistry()},
- * {@link Registry#getConfiguration(String)} and that setter. Reading the registry costs two entries in
- * {@code Require-Bundle} ({@code com.polarion.platform.hivemind} and {@code org.apache.hivemind}) and
- * buys a compile-time check: a signature that changes in a future Polarion breaks the build here rather
- * than at runtime on a customer's server. Anything unexpected is logged and leaves Polarion's own order
- * in place.
+ * Every member called here is a public one: {@link IHiveMindPlatform#getRegistry()},
+ * {@link Registry#getConfiguration(String)} and that setter. Public is the access modifier, not a
+ * promise. None of {@code AdministrationPageExtenderProvider}, {@code IHiveMindPlatform},
+ * {@code GuicePlatform} or the HiveMind {@code Registry} appears in Polarion's Open Java API or in its
+ * Rendering API, the two sets the SDK publishes, and the administration menu has no documented
+ * extension point at all. Calling them from source rather than through reflection buys a compile-time
+ * check: a signature that changes in a future Polarion breaks the build here rather than at runtime on
+ * a customer's server. It costs two entries in {@code Require-Bundle}
+ * ({@code com.polarion.platform.hivemind} and {@code org.apache.hivemind}). Anything unexpected is
+ * logged and leaves Polarion's own order in place.
  * <p>
  * The entries written are the registry's, which is the configuration Polarion itself copies into the
  * provider at start. A future Polarion that fills the provider from somewhere else would have its
@@ -58,9 +62,6 @@ public final class MenuOrderRestorer {
 
     private static final Logger logger = Logger.getLogger(MenuOrderRestorer.class);
 
-    /** Serializes this class's own writes, so two concurrent saves apply one after the other. */
-    private static final Object LOCK = new Object();
-
     private MenuOrderRestorer() {
     }
 
@@ -71,23 +72,29 @@ public final class MenuOrderRestorer {
      * Requires Polarion's platform to be initialized. A webapp context listener satisfies that:
      * {@code PlatformService.start()} builds the Guice injector before Tomcat is started.
      */
-    public static void applyAtStartup(boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
-        run(true, foldersAlphabetically, entriesInDeclarationOrder);
+    public static void applyAtStartup(@NotNull MenuOrderModes modes) {
+        run(Trigger.STARTUP, modes);
     }
 
     /** Applies the order after the modes change, including back to Polarion's own order when both are off. */
-    public static void apply(boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
-        run(false, foldersAlphabetically, entriesInDeclarationOrder);
+    public static void apply(@NotNull MenuOrderModes modes) {
+        run(Trigger.MODES_CHANGED, modes);
     }
 
-    private static void run(boolean atStartup, boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
+    /** Why the order is being applied. At server start an unconfigured menu is left untouched. */
+    enum Trigger {
+        STARTUP,
+        MODES_CHANGED
+    }
+
+    private static void run(@NotNull Trigger trigger, @NotNull MenuOrderModes modes) {
         try {
             AdministrationPageExtenderProvider provider = lookupProvider();
             if (provider == null) {
                 logger.warn("Administration menu order was not applied: the page extender provider was not injected");
                 return;
             }
-            apply(provider, PlatformContext.getPlatform(), atStartup, foldersAlphabetically, entriesInDeclarationOrder);
+            apply(provider, PlatformContext.getPlatform(), trigger, modes);
         } catch (Exception | LinkageError e) {
             // Every Polarion type named here can move in a future release, and a failure must never take
             // the webapp start or the request down with it.
@@ -96,8 +103,10 @@ public final class MenuOrderRestorer {
     }
 
     static void apply(@NotNull AdministrationPageExtenderProvider provider, @NotNull IPlatform platform,
-                      boolean atStartup, boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
-        if (atStartup && !foldersAlphabetically && !entriesInDeclarationOrder) {
+                      @NotNull Trigger trigger, @NotNull MenuOrderModes modes) {
+        // A server that never configured this extension keeps the order Polarion built, rather than the
+        // one this extension computes for it.
+        if (trigger == Trigger.STARTUP && modes.polarionsOwnOrder()) {
             return;
         }
         List<AdministrationPageExtender> declaredOrder = readDeclaredOrder(platform);
@@ -106,15 +115,16 @@ public final class MenuOrderRestorer {
             return;
         }
 
-        List<AdministrationPageExtender> plannedOrder = MenuOrderPlanner.plan(declaredOrder, foldersAlphabetically, entriesInDeclarationOrder);
+        List<AdministrationPageExtender> plannedOrder = MenuOrderPlanner.plan(declaredOrder, modes);
         // A LinkedHashSet holds the planned order, and the setter copies it into the list the provider
         // reads from. The menu is replaced in one write, so a reader building the navigation tree in
-        // parallel sees either the previous order or the new one, never a mixture of the two.
-        synchronized (LOCK) {
-            provider.setAdministrationPageExtenders(new LinkedHashSet<>(plannedOrder));
-        }
+        // parallel sees either the previous order or the new one, never a mixture of the two. No lock
+        // is taken: this is a single reference write, and Polarion's readers take none either.
+        Set<AdministrationPageExtender> orderedEntries = new LinkedHashSet<>(plannedOrder);
+        provider.setAdministrationPageExtenders(orderedEntries);
+
         logger.info("Ordered %d administration menu entries (folders alphabetically: %s, entries in declaration order: %s)"
-                .formatted(plannedOrder.size(), foldersAlphabetically, entriesInDeclarationOrder));
+                .formatted(orderedEntries.size(), modes.foldersAlphabetically(), modes.entriesInDeclarationOrder()));
         logger.debug(() -> "Administration menu order: %s".formatted(describe(plannedOrder)));
     }
 
@@ -141,9 +151,9 @@ public final class MenuOrderRestorer {
 
     /**
      * Reads the configuration straight from the HiveMind registry, the only place that still holds the
-     * entries in declaration order. A configuration holding anything but extenders is not used.
+     * entries in declaration order. A configuration holding anything but extenders is not used. The
+     * result is a copy, so the registry's own list is never handed to a caller.
      */
-    @SuppressWarnings("unchecked")
     static @Nullable List<AdministrationPageExtender> readDeclaredOrder(@NotNull IPlatform platform) {
         if (!(platform instanceof IHiveMindPlatform hiveMindPlatform)) {
             // The caller warns once that the configuration is not readable. This detail says why.
@@ -159,8 +169,8 @@ public final class MenuOrderRestorer {
                 || !configuration.stream().allMatch(AdministrationPageExtender.class::isInstance)) {
             return null;
         }
-        // Every element was checked above, so the cast is safe.
-        return (List<AdministrationPageExtender>) configuration;
+        // Every element was checked above, so no cast can fail here.
+        return configuration.stream().map(AdministrationPageExtender.class::cast).toList();
     }
 
     /** Member-injection target used only to obtain the provider singleton, see {@link #lookupProvider()}. */

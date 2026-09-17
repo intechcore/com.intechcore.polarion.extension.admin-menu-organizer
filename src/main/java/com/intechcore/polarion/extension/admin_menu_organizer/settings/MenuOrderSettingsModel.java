@@ -1,6 +1,7 @@
 package com.intechcore.polarion.extension.admin_menu_organizer.settings;
 
 import ch.sbb.polarion.extension.generic.settings.SettingsModel;
+import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderModes;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,6 +19,11 @@ public class MenuOrderSettingsModel extends SettingsModel {
 
     private boolean foldersAlphabetically;
     private boolean entriesInDeclarationOrder;
+
+    /** The stored flags as the menu package takes them. Not a bean getter, so it is not serialized. */
+    public MenuOrderModes modes() {
+        return new MenuOrderModes(foldersAlphabetically, entriesInDeclarationOrder);
+    }
 
     @Override
     protected String serializeModelData() {

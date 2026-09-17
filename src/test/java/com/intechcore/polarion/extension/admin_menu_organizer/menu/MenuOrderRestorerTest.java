@@ -1,5 +1,6 @@
 package com.intechcore.polarion.extension.admin_menu_organizer.menu;
 
+import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRestorer.Trigger;
 import com.polarion.alm.administration.web.server.AdministrationPageExtender;
 import com.polarion.alm.administration.web.server.AdministrationPageExtenderProvider;
 import com.polarion.platform.core.IPlatform;
@@ -16,6 +17,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
@@ -108,7 +110,9 @@ class MenuOrderRestorerTest {
 
         List<?> declaredOrder = MenuOrderRestorer.readDeclaredOrder(platformWith(registry));
 
-        assertSame(configuration, declaredOrder);
+        assertEquals(configuration, declaredOrder);
+        // The registry's own list must not leak out, a caller could modify the menu configuration with it.
+        assertNotSame(configuration, declaredOrder);
         // Asking for the wrong configuration point would silently return someone else's entries.
         verify(registry).getConfiguration(MenuOrderRestorer.CONFIG_ID);
     }
@@ -150,8 +154,8 @@ class MenuOrderRestorerTest {
      */
     @Test
     void neverThrowsOutsideARunningPolarion() {
-        Executable atStartup = () -> MenuOrderRestorer.applyAtStartup(true, true);
-        Executable afterSave = () -> MenuOrderRestorer.apply(true, true);
+        Executable atStartup = () -> MenuOrderRestorer.applyAtStartup(new MenuOrderModes(true, true));
+        Executable afterSave = () -> MenuOrderRestorer.apply(new MenuOrderModes(true, true));
 
         assertDoesNotThrow(atStartup);
         assertDoesNotThrow(afterSave);
@@ -167,7 +171,7 @@ class MenuOrderRestorerTest {
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, webhooks, about)));
 
-        MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css, webhooks))), false, false, true);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css, webhooks))), Trigger.MODES_CHANGED, new MenuOrderModes(false, true));
 
         assertEquals("ext/about, ext/css, ext/webhooks", MenuOrderRestorer.describe(liveOrderOf(provider)));
     }
@@ -179,9 +183,9 @@ class MenuOrderRestorerTest {
         List<AdministrationPageExtender> polarionOrder = new ArrayList<>(liveOrderOf(provider));
         IPlatform platform = platformWith(registryHolding(declaredOrder));
 
-        MenuOrderRestorer.apply(provider, platform, false, false, true);
+        MenuOrderRestorer.apply(provider, platform, Trigger.MODES_CHANGED, new MenuOrderModes(false, true));
         assertEquals(declaredOrder, liveOrderOf(provider));
-        MenuOrderRestorer.apply(provider, platform, false, false, false);
+        MenuOrderRestorer.apply(provider, platform, Trigger.MODES_CHANGED, new MenuOrderModes(false, false));
 
         assertEquals(polarionOrder, liveOrderOf(provider));
     }
@@ -194,7 +198,7 @@ class MenuOrderRestorerTest {
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, about)));
         List<AdministrationPageExtender> before = new ArrayList<>(liveOrderOf(provider));
 
-        MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css))), true, false, false);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css))), Trigger.STARTUP, new MenuOrderModes(false, false));
 
         assertEquals(before, liveOrderOf(provider));
     }
@@ -206,7 +210,7 @@ class MenuOrderRestorerTest {
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, about)));
 
-        MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css))), true, false, true);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css))), Trigger.STARTUP, new MenuOrderModes(false, true));
 
         assertEquals("ext/about, ext/css", MenuOrderRestorer.describe(liveOrderOf(provider)));
     }
@@ -219,9 +223,9 @@ class MenuOrderRestorerTest {
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, about)));
         IPlatform platform = platformWith(registryHolding(List.of(about, css)));
 
-        MenuOrderRestorer.apply(provider, platform, false, true, true);
+        MenuOrderRestorer.apply(provider, platform, Trigger.MODES_CHANGED, new MenuOrderModes(true, true));
         List<AdministrationPageExtender> afterFirstRun = new ArrayList<>(liveOrderOf(provider));
-        MenuOrderRestorer.apply(provider, platform, false, true, true);
+        MenuOrderRestorer.apply(provider, platform, Trigger.MODES_CHANGED, new MenuOrderModes(true, true));
 
         assertEquals(afterFirstRun, liveOrderOf(provider));
     }
@@ -237,7 +241,7 @@ class MenuOrderRestorerTest {
                 realExtender("core", "Core", "properties"));
         AdministrationPageExtenderProvider provider = providerFilledByPolarion(declaredOrder);
 
-        MenuOrderRestorer.apply(provider, platformWith(registryHolding(declaredOrder)), false, true, true);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(declaredOrder)), Trigger.MODES_CHANGED, new MenuOrderModes(true, true));
 
         List<AdministrationPageExtender> liveOrder = liveOrderOf(provider);
         assertEquals(declaredOrder.size(), liveOrder.size());
@@ -256,7 +260,7 @@ class MenuOrderRestorerTest {
         // Same ids, different instances.
         List<AdministrationPageExtender> registryOrder = List.of(realExtender("about"), realExtender("css"));
 
-        MenuOrderRestorer.apply(provider, platformWith(registryHolding(registryOrder)), false, true, true);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(registryOrder)), Trigger.MODES_CHANGED, new MenuOrderModes(true, true));
 
         assertEquals(registryOrder, liveOrderOf(provider));
     }
@@ -266,7 +270,7 @@ class MenuOrderRestorerTest {
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(realExtender("css"), realExtender("about"))));
 
-        MenuOrderRestorer.apply(provider, mock(IPlatform.class), false, true, true);
+        MenuOrderRestorer.apply(provider, mock(IPlatform.class), Trigger.MODES_CHANGED, new MenuOrderModes(true, true));
 
         assertEquals("ext/css, ext/about", MenuOrderRestorer.describe(liveOrderOf(provider)));
     }

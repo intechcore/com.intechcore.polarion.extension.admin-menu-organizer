@@ -77,12 +77,21 @@ Two layers: a Java/Polarion backend and a React frontend.
 
 - `menu/MenuOrderRestorer` - the whole trick. It reads the menu configuration from the HiveMind
   registry, which still holds it in declaration order, and writes the planned order back through
-  `AdministrationPageExtenderProvider.setAdministrationPageExtenders(Set)`. Both steps use public
-  Polarion API, so **the class holds no reflection**: a signature that changes in a future Polarion
-  breaks the build instead of a customer's menu. The setter keeps the iteration order of the set it
-  receives, which `MenuOrderRestorerTest` pins against the real Polarion class. Everything it
-  touches is guarded: an unexpected shape is logged **once** as a warning and the menu is left as
-  Polarion built it. Its `LOCK` is deliberately a private static field, not a shared one.
+  `AdministrationPageExtenderProvider.setAdministrationPageExtenders(Set)`. Both members are public,
+  so **the class holds no reflection**: a signature that changes in a future Polarion breaks the
+  build instead of a customer's menu. The setter keeps the iteration order of the set it receives,
+  which `MenuOrderRestorerTest` pins against the real Polarion class. Everything it touches is
+  guarded: an unexpected shape is logged **once** as a warning and the menu is left as Polarion
+  built it. No lock is taken, the write is a single reference assignment.
+- **Public modifier, not published API.** None of `AdministrationPageExtender(Provider)`,
+  `IHiveMindPlatform`, `GuicePlatform` or the HiveMind `Registry` appears in the two javadoc sets
+  Polarion publishes as its API (`$POLARION_HOME/polarion/SDK/doc/javadoc` for the Open Java API and
+  `doc/javadoc-rendering` for the Rendering API, the same pages as on
+  https://testdrive.polarion.com/polarion/sdk/). The administration menu has no documented extension
+  point at all, so this extension cannot be written against the Open API. What it does use from
+  there: `IPlatform`, `PlatformContext`, `ISecurityService` and `Logger`.
+- `menu/MenuOrderModes` - the two flags as one record, passed to the restorer and the planner.
+  `MenuOrderSettingsModel.modes()` is the single place that builds it.
 - `menu/MenuOrderPlanner` - the pure part: given the extenders and the two flags, it computes the
   order. Sections sort through a `Collator` with `SECONDARY` strength, so the order does not depend
   on the platform locale. This is where the 501 unit tests live.
