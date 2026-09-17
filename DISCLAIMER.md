@@ -19,5 +19,5 @@ When the administrator turns both options off, the menu returns to the order tha
 
 ## Why it is risky
 
-* A future Polarion release can change how it builds the Administration menu. The extension then writes a warning to the log and leaves the menu as Polarion built it.
-* The extension changes the menu while Polarion is running. For a very short time, a user can see one menu page twice. The next page load shows the correct menu.
+* A future Polarion release can change how it builds the Administration menu. The extension then leaves the menu as Polarion built it, writes a warning to the log, and reports the failure when you save the options.
+* The extension changes the menu while Polarion is running. It replaces the whole menu in one step, so a user sees either the previous order or the new one. Reload the page to see the new order.

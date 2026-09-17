@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Polarion's Logger delegates to log4j, and its debug calls take a lambda. With debug switched off
+  those lambdas never run, so a failure inside one would only show on a server that has debug
+  logging on. This turns them on for the extension's own classes, and sends the output nowhere.
+-->
+<Configuration status="ERROR">
+    <Appenders>
+        <Null name="none"/>
+    </Appenders>
+    <Loggers>
+        <Root level="error">
+            <AppenderRef ref="none"/>
+        </Root>
+        <Logger name="com.intechcore.polarion.extension.admin_menu_organizer" level="debug" additivity="false">
+            <AppenderRef ref="none"/>
+        </Logger>
+    </Loggers>
+</Configuration>

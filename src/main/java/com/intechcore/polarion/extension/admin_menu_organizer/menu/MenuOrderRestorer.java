@@ -76,9 +76,14 @@ public final class MenuOrderRestorer {
         run(Trigger.STARTUP, modes);
     }
 
-    /** Applies the order after the modes change, including back to Polarion's own order when both are off. */
-    public static void apply(@NotNull MenuOrderModes modes) {
-        run(Trigger.MODES_CHANGED, modes);
+    /**
+     * Applies the order after the modes change, including back to Polarion's own order when both are
+     * off. The caller answers a request, so it is told what happened instead of only the log.
+     *
+     * @return whether the menu now holds the order the modes ask for
+     */
+    public static boolean apply(@NotNull MenuOrderModes modes) {
+        return run(Trigger.MODES_CHANGED, modes);
     }
 
     /** Why the order is being applied. At server start an unconfigured menu is left untouched. */
@@ -87,32 +92,33 @@ public final class MenuOrderRestorer {
         MODES_CHANGED
     }
 
-    private static void run(@NotNull Trigger trigger, @NotNull MenuOrderModes modes) {
+    private static boolean run(@NotNull Trigger trigger, @NotNull MenuOrderModes modes) {
         try {
             AdministrationPageExtenderProvider provider = lookupProvider();
             if (provider == null) {
                 logger.warn("Administration menu order was not applied: the page extender provider was not injected");
-                return;
+                return false;
             }
-            apply(provider, PlatformContext.getPlatform(), trigger, modes);
+            return apply(provider, PlatformContext.getPlatform(), trigger, modes);
         } catch (Exception | LinkageError e) {
             // Every Polarion type named here can move in a future release, and a failure must never take
             // the webapp start or the request down with it.
             logger.warn("Administration menu order was not applied, Polarion's own order is kept", e);
+            return false;
         }
     }
 
-    static void apply(@NotNull AdministrationPageExtenderProvider provider, @NotNull IPlatform platform,
-                      @NotNull Trigger trigger, @NotNull MenuOrderModes modes) {
+    static boolean apply(@NotNull AdministrationPageExtenderProvider provider, @NotNull IPlatform platform,
+                         @NotNull Trigger trigger, @NotNull MenuOrderModes modes) {
         // A server that never configured this extension keeps the order Polarion built, rather than the
-        // one this extension computes for it.
+        // one this extension computes for it. That order is what the modes ask for, so nothing is wrong.
         if (trigger == Trigger.STARTUP && modes.polarionsOwnOrder()) {
-            return;
+            return true;
         }
         List<AdministrationPageExtender> declaredOrder = readDeclaredOrder(platform);
         if (declaredOrder == null) {
             logger.warn("Administration menu order was not applied: the '%s' configuration is not readable".formatted(CONFIG_ID));
-            return;
+            return false;
         }
 
         List<AdministrationPageExtender> plannedOrder = MenuOrderPlanner.plan(declaredOrder, modes);
@@ -126,6 +132,7 @@ public final class MenuOrderRestorer {
         logger.info("Ordered %d administration menu entries (folders alphabetically: %s, entries in declaration order: %s)"
                 .formatted(orderedEntries.size(), modes.foldersAlphabetically(), modes.entriesInDeclarationOrder()));
         logger.debug(() -> "Administration menu order: %s".formatted(describe(plannedOrder)));
+        return true;
     }
 
     /**

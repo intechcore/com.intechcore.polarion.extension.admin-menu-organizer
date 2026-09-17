@@ -206,4 +206,41 @@ class MenuOrderPlannerTest {
             }
         }
     }
+
+    /**
+     * An entry that gives a parent id but no parent name, and no other entry names that id either.
+     * Polarion shows the id as the folder label, so the planner sorts by it.
+     */
+    @Test
+    void sortsAFolderThatOnlyHasAnId() {
+        AdministrationPageExtender zzz = new AdministrationPageExtender();
+        zzz.setId("zzz-entry");
+        zzz.setParentNodeId("zzz-folder");
+        AdministrationPageExtender aaa = new AdministrationPageExtender();
+        aaa.setId("aaa-entry");
+        aaa.setParentNodeId("aaa-folder");
+        List<AdministrationPageExtender> declared = List.of(zzz, aaa);
+
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(true, true));
+
+        assertEquals(List.of(aaa, zzz), planned);
+    }
+
+    /** An entry with an empty parent id belongs to no folder, so it is placed by its own name. */
+    @Test
+    void placesAnEntryWithAnEmptyParentIdOnItsOwn() {
+        AdministrationPageExtender loose = new AdministrationPageExtender();
+        loose.setId("loose");
+        loose.setParentNodeId("");
+        loose.setName("Loose entry");
+        AdministrationPageExtender inFolder = new AdministrationPageExtender();
+        inFolder.setId("about");
+        inFolder.setParentNodeId("ext");
+        inFolder.setParentNodeName("Alpha");
+        List<AdministrationPageExtender> declared = List.of(loose, inFolder);
+
+        List<AdministrationPageExtender> planned = MenuOrderPlanner.plan(declared, new MenuOrderModes(true, true));
+
+        assertEquals(List.of(inFolder, loose), planned);
+    }
 }
