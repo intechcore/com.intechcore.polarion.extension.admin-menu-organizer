@@ -1,6 +1,5 @@
 package com.intechcore.polarion.extension.admin_menu_organizer.menu;
 
-import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRestorer.Outcome;
 import com.polarion.alm.administration.web.server.AdministrationPageExtender;
 import com.polarion.alm.administration.web.server.AdministrationPageExtenderProvider;
 import com.polarion.platform.core.IPlatform;
@@ -17,223 +16,44 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class MenuOrderRestorerTest {
 
-    /**
-     * Stands in for {@code AdministrationPageExtender}, which is what makes the reordering necessary:
-     * it implements neither {@code equals} nor {@code hashCode}, so identity is all there is.
-     */
-    @SuppressWarnings("ClassCanBeRecord")
-    private static final class Entry {
-        private final String name;
-
-        Entry(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String toString() {
-            return name;
-        }
+    private static AdministrationPageExtender realExtender(String id) {
+        return realExtender("ext", "Ext", id);
     }
 
-    private static List<Object> entries(String... names) {
-        List<Object> result = new ArrayList<>();
-        for (String name : names) {
-            result.add(new Entry(name));
-        }
-        return result;
-    }
-
-    private static List<String> names(List<?> entries) {
-        return entries.stream().map(String::valueOf).toList();
-    }
-
-    private static List<Object> shuffled(List<Object> source, int... indices) {
-        List<Object> result = new ArrayList<>();
-        for (int index : indices) {
-            result.add(source.get(index));
-        }
-        return result;
-    }
-
-    @Test
-    void appliesTheDeclaredOrder() {
-        List<Object> declared = entries("about", "user-guide", "css", "webhooks");
-        List<Object> live = shuffled(declared, 2, 0, 3, 1);
-
-        assertEquals(Outcome.APPLIED, MenuOrderRestorer.restore(live, declared));
-        assertEquals(List.of("about", "user-guide", "css", "webhooks"), names(live));
-    }
-
-    @Test
-    void keepsTheSameInstances() {
-        List<Object> declared = entries("about", "css");
-        List<Object> live = shuffled(declared, 1, 0);
-
-        MenuOrderRestorer.restore(live, declared);
-
-        assertSame(declared.get(0), live.get(0));
-        assertSame(declared.get(1), live.get(1));
-    }
-
-    @Test
-    void neverChangesTheSize() {
-        List<Object> declared = entries("a", "b", "c");
-        List<Object> live = shuffled(declared, 2, 1, 0);
-
-        MenuOrderRestorer.restore(live, declared);
-
-        assertEquals(3, live.size());
-    }
-
-    /**
-     * A second run, at startup or after a save, finds nothing to change and must report so rather than
-     * rewrite the list.
-     */
-    @Test
-    void reportsAlreadyOrderedOnASecondCall() {
-        List<Object> declared = entries("about", "user-guide", "css");
-        List<Object> live = shuffled(declared, 1, 2, 0);
-
-        assertEquals(Outcome.APPLIED, MenuOrderRestorer.restore(live, declared));
-        List<String> once = names(live);
-        assertEquals(Outcome.ALREADY_ORDERED, MenuOrderRestorer.restore(live, declared));
-
-        assertEquals(once, names(live));
-    }
-
-    @Test
-    void leavesAnAlreadyOrderedListUntouched() {
-        List<Object> declared = entries("about", "css");
-        List<Object> live = new ArrayList<>(declared);
-
-        assertEquals(Outcome.ALREADY_ORDERED, MenuOrderRestorer.restore(live, declared));
-        assertEquals(names(declared), names(live));
-    }
-
-    @Test
-    void rejectsListsOfDifferentSize() {
-        List<Object> declared = entries("about", "css", "webhooks");
-        List<Object> live = shuffled(declared, 1, 0);
-
-        assertEquals(Outcome.MISMATCH, MenuOrderRestorer.restore(live, declared));
-        assertEquals(List.of("css", "about"), names(live));
-    }
-
-    @Test
-    void rejectsListsHoldingDifferentEntries() {
-        List<Object> declared = entries("about", "css");
-        List<Object> live = entries("css", "about");
-        Object firstBefore = live.getFirst();
-
-        // Equal-looking but distinct instances: nothing may be replaced.
-        assertEquals(Outcome.MISMATCH, MenuOrderRestorer.restore(live, declared));
-        assertSame(firstBefore, live.getFirst());
-        assertEquals(List.of("css", "about"), names(live));
-    }
-
-    @Test
-    void rejectsARepeatedInstance() {
-        List<Object> declared = entries("about", "css");
-        List<Object> live = new ArrayList<>(List.of(declared.getFirst(), declared.getFirst()));
-
-        assertEquals(Outcome.MISMATCH, MenuOrderRestorer.restore(live, declared));
-    }
-
-    /**
-     * The shape the guard exists for: identity sets collapse repeats, so equal sets over equal-sized
-     * lists would otherwise let one entry be dropped and another written twice.
-     */
-    @Test
-    void rejectsARepeatedInstanceOnBothSides() {
-        List<Object> pair = entries("about", "css");
-        Object about = pair.getFirst();
-        Object css = pair.get(1);
-        List<Object> live = new ArrayList<>(List.of(about, about, css));
-        List<Object> declared = new ArrayList<>(List.of(about, css, css));
-
-        assertEquals(Outcome.MISMATCH, MenuOrderRestorer.restore(live, declared));
-        assertEquals(List.of("about", "about", "css"), names(live));
-    }
-
-    @Test
-    void handlesEmptyLists() {
-        List<Object> live = new ArrayList<>();
-
-        assertEquals(Outcome.ALREADY_ORDERED, MenuOrderRestorer.restore(live, List.of()));
-        assertTrue(live.isEmpty());
-    }
-
-    @Test
-    void reordersEntriesOfEveryExtensionAtOnce() {
-        // Two extensions plus a Polarion-provided entry, declared in this order.
-        List<Object> declared = entries("ext-a/about", "ext-a/css", "ext-b/about", "ext-b/settings", "core/properties");
-        List<Object> live = shuffled(declared, 3, 0, 4, 2, 1);
-
-        assertEquals(Outcome.APPLIED, MenuOrderRestorer.restore(live, declared));
-        assertEquals(names(declared), names(live));
-    }
-
-    @Test
-    void describesRealEntriesByParentAndId() {
+    private static AdministrationPageExtender realExtender(String parentNodeId, String parentNodeName, String id) {
         AdministrationPageExtender extender = new AdministrationPageExtender();
-        extender.setId("style-package");
-        extender.setParentNodeId("pdf-export");
-
-        assertEquals("pdf-export/style-package", MenuOrderRestorer.describe(List.of(extender)));
-    }
-
-    @Test
-    void describesEntriesInOrder() {
-        assertEquals("ext/a, ext/b", MenuOrderRestorer.describe(List.of(realExtender("a"), realExtender("b"))));
+        extender.setId(id);
+        extender.setParentNodeId(parentNodeId);
+        extender.setParentNodeName(parentNodeName);
+        return extender;
     }
 
     /**
-     * Pins the one reflective name that can silently break this class against Polarion's real type. If a
-     * Polarion upgrade renames or retypes the field, this fails at build time instead of degrading to a
-     * WARN on a production server, where the symptom is the randomized menu this class exists to fix.
+     * Reads the entries the provider holds. This class writes them through the provider's own setter and
+     * reads nothing back, so the only reflection left in the extension is here, in the test that checks
+     * the effect.
      */
-    @Test
-    @SuppressWarnings("java:S3011")
-    void providerStillDeclaresTheExtendersListField() throws Exception {
+    @SuppressWarnings({"unchecked", "java:S3011"})
+    private static List<AdministrationPageExtender> liveOrderOf(AdministrationPageExtenderProvider provider) throws Exception {
         Field field = AdministrationPageExtenderProvider.class.getDeclaredField("extenders");
         field.setAccessible(true);
-
-        assertInstanceOf(List.class, field.get(new AdministrationPageExtenderProvider()));
+        return (List<AdministrationPageExtender>) field.get(provider);
     }
 
-    /**
-     * The provider must keep taking entries through this setter and keep them in a mutable list, which is
-     * what lets the order be corrected in place.
-     */
-    @Test
-    @SuppressWarnings("unchecked")
-    void providerKeepsItsEntriesInAMutableList() throws Exception {
-        AdministrationPageExtender extender = new AdministrationPageExtender();
-        extender.setId("about");
+    /** Fills the provider the way Polarion 2606 does: the declared entries through Set.copyOf. */
+    private static AdministrationPageExtenderProvider providerFilledByPolarion(List<AdministrationPageExtender> declaredOrder) {
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
-        provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(extender)));
-
-        Field field = AdministrationPageExtenderProvider.class.getDeclaredField("extenders");
-        field.setAccessible(true);
-        List<Object> entries = (List<Object>) field.get(provider);
-
-        assertEquals(1, entries.size());
-        assertSame(extender, entries.get(0));
-        assertDoesNotThrow(() -> entries.set(0, extender), "the entry list must be writable in place");
+        provider.setAdministrationPageExtenders(Set.copyOf(declaredOrder));
+        return provider;
     }
-
-    // --- The reflective half: the paths that break on a Polarion upgrade ---
 
     /** A platform carrying a HiveMind registry, which is where the declared order lives. */
     private static IHiveMindPlatform platformWith(Registry registry) {
@@ -249,21 +69,37 @@ class MenuOrderRestorerTest {
         return registry;
     }
 
+    // --- The one Polarion behavior the whole class rests on ---
+
+    /**
+     * Pins the contract of the setter this class writes through: the entries are kept in the iteration
+     * order of the given set. A Polarion upgrade that sorts them, or copies them into a set of its own,
+     * fails here at build time instead of degrading to the randomized menu this class exists to fix.
+     */
     @Test
-    void readsTheProvidersOwnEntryList() throws Exception {
-        AdministrationPageExtender extender = new AdministrationPageExtender();
-        extender.setId("about");
+    void providerKeepsTheOrderOfTheGivenSet() throws Exception {
+        List<AdministrationPageExtender> entries = List.of(realExtender("css"), realExtender("about"), realExtender("webhooks"));
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
-        provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(extender)));
 
-        List<AdministrationPageExtender> liveOrder = MenuOrderRestorer.readLiveOrder(provider);
+        provider.setAdministrationPageExtenders(new LinkedHashSet<>(entries));
 
-        assertNotNull(liveOrder);
-        assertSame(extender, liveOrder.getFirst());
-        // Must be the provider's own list, not a copy: the order is corrected in place.
-        liveOrder.set(0, extender);
-        assertSame(liveOrder, MenuOrderRestorer.readLiveOrder(provider));
+        assertEquals(entries, liveOrderOf(provider));
     }
+
+    /**
+     * Switching the modes off relies on recomputing Polarion's order instead of storing it, so the
+     * recomputation must match what the provider received.
+     */
+    @Test
+    void reproducesTheOrderPolarionBuilds() throws Exception {
+        List<AdministrationPageExtender> declaredOrder = List.of(realExtender("a"), realExtender("b"), realExtender("c"), realExtender("d"), realExtender("e"));
+
+        AdministrationPageExtenderProvider provider = providerFilledByPolarion(declaredOrder);
+
+        assertEquals(MenuOrderPlanner.polarionOrder(declaredOrder), liveOrderOf(provider));
+    }
+
+    // --- Reading the declared order ---
 
     @Test
     void readsTheDeclaredOrderFromTheRegistry() {
@@ -290,7 +126,7 @@ class MenuOrderRestorerTest {
         assertNull(MenuOrderRestorer.readDeclaredOrder(platformWith(registryHolding(List.of()))));
     }
 
-    /** Only extenders may reach the provider's list, so a configuration holding anything else is not used. */
+    /** Only extenders may reach the provider, so a configuration holding anything else is not used. */
     @Test
     void readsNoDeclaredOrderWhenTheConfigurationHoldsOtherTypes() {
         List<Object> mixed = List.of(realExtender("about"), "not an extender");
@@ -309,8 +145,8 @@ class MenuOrderRestorerTest {
 
     /**
      * The entry points are called from the startup listener and from a settings save, where an exception
-     * would fail the webapp start or the request. Outside a running Polarion every reflective step fails, and they
-     * still must not throw.
+     * would fail the webapp start or the request. Outside a running Polarion there is no platform at all,
+     * and they still must not throw.
      */
     @Test
     void neverThrowsOutsideARunningPolarion() {
@@ -322,41 +158,6 @@ class MenuOrderRestorerTest {
     }
 
     // --- The whole pipeline, driven with Polarion's real provider and a stand-in platform ---
-
-    private static AdministrationPageExtender realExtender(String id) {
-        AdministrationPageExtender extender = new AdministrationPageExtender();
-        extender.setId(id);
-        extender.setParentNodeId("ext");
-        extender.setParentNodeName("Ext");
-        return extender;
-    }
-
-    @SuppressWarnings({"unchecked", "java:S3011"})
-    private static List<AdministrationPageExtender> liveOrderOf(AdministrationPageExtenderProvider provider) throws Exception {
-        Field field = AdministrationPageExtenderProvider.class.getDeclaredField("extenders");
-        field.setAccessible(true);
-        return (List<AdministrationPageExtender>) field.get(provider);
-    }
-
-    /** Fills the provider the way Polarion 2606 does: the declared entries through Set.copyOf. */
-    private static AdministrationPageExtenderProvider providerFilledByPolarion(List<AdministrationPageExtender> declaredOrder) {
-        AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
-        provider.setAdministrationPageExtenders(Set.copyOf(declaredOrder));
-        return provider;
-    }
-
-    /**
-     * Switching the modes off relies on recomputing Polarion's order instead of storing it, so the
-     * recomputation must match what the provider received.
-     */
-    @Test
-    void reproducesTheOrderPolarionBuilds() throws Exception {
-        List<AdministrationPageExtender> declaredOrder = List.of(realExtender("a"), realExtender("b"), realExtender("c"), realExtender("d"), realExtender("e"));
-
-        AdministrationPageExtenderProvider provider = providerFilledByPolarion(declaredOrder);
-
-        assertEquals(MenuOrderPlanner.polarionOrder(declaredOrder), liveOrderOf(provider));
-    }
 
     @Test
     void ordersTheProvidersEntriesByDeclaration() throws Exception {
@@ -375,11 +176,11 @@ class MenuOrderRestorerTest {
     void returnsToPolarionsOrderWhenTheModesAreSwitchedOff() throws Exception {
         List<AdministrationPageExtender> declaredOrder = List.of(realExtender("a"), realExtender("b"), realExtender("c"), realExtender("d"), realExtender("e"));
         AdministrationPageExtenderProvider provider = providerFilledByPolarion(declaredOrder);
-        List<Object> polarionOrder = new ArrayList<>(liveOrderOf(provider));
+        List<AdministrationPageExtender> polarionOrder = new ArrayList<>(liveOrderOf(provider));
         IPlatform platform = platformWith(registryHolding(declaredOrder));
 
         MenuOrderRestorer.apply(provider, platform, false, false, true);
-        assertEquals(List.copyOf(declaredOrder), liveOrderOf(provider));
+        assertEquals(declaredOrder, liveOrderOf(provider));
         MenuOrderRestorer.apply(provider, platform, false, false, false);
 
         assertEquals(polarionOrder, liveOrderOf(provider));
@@ -391,7 +192,7 @@ class MenuOrderRestorerTest {
         AdministrationPageExtender css = realExtender("css");
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, about)));
-        List<Object> before = new ArrayList<>(liveOrderOf(provider));
+        List<AdministrationPageExtender> before = new ArrayList<>(liveOrderOf(provider));
 
         MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css))), true, false, false);
 
@@ -411,7 +212,7 @@ class MenuOrderRestorerTest {
     }
 
     @Test
-    void leavesTheProvidersEntriesAloneOnASecondRun() throws Exception {
+    void appliesTheSameOrderOnASecondRun() throws Exception {
         AdministrationPageExtender about = realExtender("about");
         AdministrationPageExtender css = realExtender("css");
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
@@ -419,22 +220,45 @@ class MenuOrderRestorerTest {
         IPlatform platform = platformWith(registryHolding(List.of(about, css)));
 
         MenuOrderRestorer.apply(provider, platform, false, true, true);
-        List<Object> afterFirstRun = new ArrayList<>(liveOrderOf(provider));
+        List<AdministrationPageExtender> afterFirstRun = new ArrayList<>(liveOrderOf(provider));
         MenuOrderRestorer.apply(provider, platform, false, true, true);
 
         assertEquals(afterFirstRun, liveOrderOf(provider));
     }
 
+    /** Every entry of every extension reaches the provider, whatever the order the modes ask for. */
     @Test
-    void leavesTheProvidersEntriesAloneWhenTheRegistryHoldsOtherEntries() throws Exception {
+    void keepsEveryEntryOfEveryExtension() throws Exception {
+        List<AdministrationPageExtender> declaredOrder = List.of(
+                realExtender("ext-a", "Extension A", "about"),
+                realExtender("ext-a", "Extension A", "css"),
+                realExtender("ext-b", "Extension B", "about"),
+                realExtender("ext-b", "Extension B", "settings"),
+                realExtender("core", "Core", "properties"));
+        AdministrationPageExtenderProvider provider = providerFilledByPolarion(declaredOrder);
+
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(declaredOrder)), false, true, true);
+
+        List<AdministrationPageExtender> liveOrder = liveOrderOf(provider);
+        assertEquals(declaredOrder.size(), liveOrder.size());
+        assertEquals(Set.copyOf(declaredOrder), Set.copyOf(liveOrder));
+    }
+
+    /**
+     * The registry's entries are written over whatever the provider holds. Reading the provider's own
+     * list back, to apply a permutation of it instead, is what the reflective version did; the entries
+     * written are the configuration Polarion fills the provider from.
+     */
+    @Test
+    void writesTheRegistrysEntriesOverTheProvidersOwn() throws Exception {
         AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
         provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(realExtender("css"), realExtender("about"))));
-        // Same ids, different instances: this is not Polarion's own list and must not be applied.
-        List<Object> foreignOrder = List.of(realExtender("about"), realExtender("css"));
+        // Same ids, different instances.
+        List<AdministrationPageExtender> registryOrder = List.of(realExtender("about"), realExtender("css"));
 
-        MenuOrderRestorer.apply(provider, platformWith(registryHolding(foreignOrder)), false, true, true);
+        MenuOrderRestorer.apply(provider, platformWith(registryHolding(registryOrder)), false, true, true);
 
-        assertEquals("ext/css, ext/about", MenuOrderRestorer.describe(liveOrderOf(provider)));
+        assertEquals(registryOrder, liveOrderOf(provider));
     }
 
     @Test
@@ -447,37 +271,19 @@ class MenuOrderRestorerTest {
         assertEquals("ext/css, ext/about", MenuOrderRestorer.describe(liveOrderOf(provider)));
     }
 
-    /** A future Polarion that subclasses the provider: the field then sits on the superclass. */
-    static class SubclassedProvider extends AdministrationPageExtenderProvider {
+    // --- Logging the result ---
+
+    @Test
+    void describesRealEntriesByParentAndId() {
+        AdministrationPageExtender extender = new AdministrationPageExtender();
+        extender.setId("style-package");
+        extender.setParentNodeId("pdf-export");
+
+        assertEquals("pdf-export/style-package", MenuOrderRestorer.describe(List.of(extender)));
     }
 
     @Test
-    @SuppressWarnings("java:S3011")
-    void findsTheEntryListOnASuperclass() throws Exception {
-        AdministrationPageExtender about = realExtender("about");
-        SubclassedProvider provider = new SubclassedProvider();
-        provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(about)));
-
-        List<AdministrationPageExtender> liveOrder = MenuOrderRestorer.readLiveOrder(provider);
-
-        assertNotNull(liveOrder);
-        assertSame(about, liveOrder.getFirst());
-    }
-
-    /**
-     * A provider left holding no list must degrade to a warning, not to a NullPointerException on a
-     * startup thread. The field is declared as a List, so this is the only shape the read can reject.
-     */
-    @Test
-    @SuppressWarnings("java:S3011")
-    void readsNoEntryListWhenTheProviderHoldsNone() throws Exception {
-        AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
-        Field field = AdministrationPageExtenderProvider.class.getDeclaredField("extenders");
-        field.setAccessible(true);
-        field.set(provider, null);
-
-        assertNull(MenuOrderRestorer.readLiveOrder(provider));
-        assertDoesNotThrow(() -> MenuOrderRestorer.apply(
-                provider, platformWith(registryHolding(List.of(realExtender("about")))), false, true, true));
+    void describesEntriesInOrder() {
+        assertEquals("ext/a, ext/b", MenuOrderRestorer.describe(List.of(realExtender("a"), realExtender("b"))));
     }
 }

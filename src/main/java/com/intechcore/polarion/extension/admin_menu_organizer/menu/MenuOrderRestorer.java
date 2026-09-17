@@ -12,9 +12,7 @@ import org.apache.hivemind.Registry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -31,40 +29,44 @@ import java.util.stream.Collectors;
  * {@code AdministrationPageExtender} does not override {@code hashCode}. Every menu entry of every
  * extension therefore lands in a different place after each restart.
  * <p>
- * The HiveMind registry still holds the configuration in declaration order, and the provider keeps its
- * entries in a mutable list. This class reads both, lets {@link MenuOrderPlanner} compute the order, and
- * writes it into that list as a permutation of the entries Polarion already holds.
+ * The HiveMind registry still holds the configuration in declaration order. This class reads it, lets
+ * {@link MenuOrderPlanner} compute the order, and hands the result back through
+ * {@link AdministrationPageExtenderProvider#setAdministrationPageExtenders(Set)}, the same public setter
+ * Polarion injects through. The setter copies its argument into a list of its own, so a
+ * {@link LinkedHashSet} in the planned order becomes the menu order. Nothing is added and nothing is
+ * removed: {@link MenuOrderPlanner} only permutes the entries it is given.
  * <p>
- * The registry is reached through {@link IHiveMindPlatform#getRegistry()} and
- * {@link Registry#getConfiguration(String)}, both public. That costs two entries in
+ * Every Polarion member used here is public: {@link IHiveMindPlatform#getRegistry()},
+ * {@link Registry#getConfiguration(String)} and that setter. Reading the registry costs two entries in
  * {@code Require-Bundle} ({@code com.polarion.platform.hivemind} and {@code org.apache.hivemind}) and
  * buys a compile-time check: a signature that changes in a future Polarion breaks the build here rather
- * than at runtime on a customer's server. The provider's list is still read from a private field, which
- * has no public equivalent. Anything unexpected is logged and leaves Polarion's own order in place.
+ * than at runtime on a customer's server. Anything unexpected is logged and leaves Polarion's own order
+ * in place.
  * <p>
- * The provider must come from Guice, not from {@code PlatformContext.lookupService}. Its HiveMind
- * service point uses the default singleton service model, whose {@code getService()} returns a generated
- * proxy: the proxy carries no field to read, so the reflective read finds nothing. Member injection
- * yields the real singleton the proxy delegates to, which is also the object that builds the navigation
- * tree.
+ * The entries written are the registry's, which is the configuration Polarion itself copies into the
+ * provider at start. A future Polarion that fills the provider from somewhere else would have its
+ * entries replaced by the registry's. That is the price of dropping the reflective read of the
+ * provider's own list, which has no public equivalent.
+ * <p>
+ * The provider must come from Guice, not from {@code PlatformContext.lookupService}, which answers with
+ * the generated HiveMind singleton proxy. Member injection yields the real singleton, which is also the
+ * object that builds the navigation tree.
  */
 public final class MenuOrderRestorer {
 
     static final String CONFIG_ID = "com.polarion.xray.webui.administrationPageExtenders";
-    private static final String EXTENDERS_FIELD = "extenders";
 
     private static final Logger logger = Logger.getLogger(MenuOrderRestorer.class);
 
-    /** Serializes this class's own writes to the provider's list. Polarion's readers never take it. */
+    /** Serializes this class's own writes, so two concurrent saves apply one after the other. */
     private static final Object LOCK = new Object();
 
     private MenuOrderRestorer() {
     }
 
     /**
-     * Applies the order at server start. It first checks that {@link MenuOrderPlanner#polarionOrder(List)}
-     * reproduces the order Polarion built, because switching the modes off later relies on it. With both
-     * modes off it then changes nothing.
+     * Applies the order at server start. With both modes off it changes nothing, because Polarion's own
+     * order is then what the modes ask for.
      * <p>
      * Requires Polarion's platform to be initialized. A webapp context listener satisfies that:
      * {@code PlatformService.start()} builds the Guice injector before Tomcat is started.
@@ -94,11 +96,8 @@ public final class MenuOrderRestorer {
     }
 
     static void apply(@NotNull AdministrationPageExtenderProvider provider, @NotNull IPlatform platform,
-                      boolean atStartup, boolean foldersAlphabetically, boolean entriesInDeclarationOrder) throws ReflectiveOperationException {
-        List<AdministrationPageExtender> liveOrder = readLiveOrder(provider);
-        if (liveOrder == null) {
-            logger.warn("Administration menu order was not applied: %s has no readable '%s' list"
-                    .formatted(provider.getClass().getName(), EXTENDERS_FIELD));
+                      boolean atStartup, boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
+        if (atStartup && !foldersAlphabetically && !entriesInDeclarationOrder) {
             return;
         }
         List<AdministrationPageExtender> declaredOrder = readDeclaredOrder(platform);
@@ -107,84 +106,16 @@ public final class MenuOrderRestorer {
             return;
         }
 
-        Outcome outcome;
-        // The lock covers the already-ordered check too, so of two concurrent calls one does the work and
-        // the other finds it done. Polarion's readers never take it, see restore(List, List).
+        List<AdministrationPageExtender> plannedOrder = MenuOrderPlanner.plan(declaredOrder, foldersAlphabetically, entriesInDeclarationOrder);
+        // A LinkedHashSet holds the planned order, and the setter copies it into the list the provider
+        // reads from. The menu is replaced in one write, so a reader building the navigation tree in
+        // parallel sees either the previous order or the new one, never a mixture of the two.
         synchronized (LOCK) {
-            if (atStartup) {
-                checkPolarionOrder(liveOrder, declaredOrder);
-                if (!foldersAlphabetically && !entriesInDeclarationOrder) {
-                    return;
-                }
-            }
-            outcome = restore(liveOrder, MenuOrderPlanner.plan(declaredOrder, foldersAlphabetically, entriesInDeclarationOrder));
+            provider.setAdministrationPageExtenders(new LinkedHashSet<>(plannedOrder));
         }
-        switch (outcome) {
-            case APPLIED -> {
-                logger.info("Ordered %d administration menu entries (folders alphabetically: %s, entries in declaration order: %s)"
-                        .formatted(liveOrder.size(), foldersAlphabetically, entriesInDeclarationOrder));
-                logger.debug(() -> "Administration menu order: %s".formatted(describe(liveOrder)));
-            }
-            case ALREADY_ORDERED -> logger.debug(() -> "Administration menu already holds its %d entries in the requested order"
-                    .formatted(liveOrder.size()));
-            case MISMATCH -> logger.warn("Administration menu order was not applied: Polarion's menu entries do not match its own configuration");
-        }
-    }
-
-    private static void checkPolarionOrder(@NotNull List<AdministrationPageExtender> liveOrder, @NotNull List<AdministrationPageExtender> declaredOrder) {
-        List<AdministrationPageExtender> polarionOrder = MenuOrderPlanner.polarionOrder(declaredOrder);
-        if (liveOrder.size() == polarionOrder.size() && alreadyOrdered(liveOrder, polarionOrder)) {
-            logger.debug("Polarion's own administration menu order is reproducible");
-        } else {
-            logger.warn("Polarion's own administration menu order cannot be reproduced: switching the ordering modes off will not return to it exactly");
-        }
-    }
-
-    /**
-     * Copies {@code targetOrder} into {@code liveOrder} position by position.
-     * <p>
-     * Only a permutation is applied, and only when both lists hold exactly the same objects. The size
-     * never changes and no position is ever empty, so a reader building the navigation tree in parallel
-     * cannot observe a null entry. It can, while the loop runs, briefly see one entry twice and another
-     * not at all: that reader renders one menu with a duplicated entry, and the next render is correct.
-     * Rejecting anything but a permutation keeps a future Polarion, which may fill the provider from
-     * somewhere else, from having its entries replaced.
-     *
-     * @param liveOrder   the provider's own list, modified in place
-     * @param targetOrder the same entries in the requested order
-     * @param <T>         the type of the entries
-     * @return what the call did, see {@link Outcome}
-     */
-    static <T> @NotNull Outcome restore(@NotNull List<T> liveOrder, @NotNull List<? extends T> targetOrder) {
-        if (liveOrder.size() != targetOrder.size() || !holdSameEntries(liveOrder, targetOrder)) {
-            return Outcome.MISMATCH;
-        }
-        if (alreadyOrdered(liveOrder, targetOrder)) {
-            return Outcome.ALREADY_ORDERED;
-        }
-        for (int i = 0; i < targetOrder.size(); i++) {
-            liveOrder.set(i, targetOrder.get(i));
-        }
-        return Outcome.APPLIED;
-    }
-
-    /** What a {@link #restore(List, List)} call did. */
-    enum Outcome {
-        /** The order was applied. */
-        APPLIED,
-        /** Nothing to do: the entries already sat in the requested order. */
-        ALREADY_ORDERED,
-        /** The two lists do not hold the same entries, so nothing was touched. */
-        MISMATCH
-    }
-
-    private static boolean alreadyOrdered(@NotNull List<?> liveOrder, @NotNull List<?> targetOrder) {
-        for (int i = 0; i < targetOrder.size(); i++) {
-            if (liveOrder.get(i) != targetOrder.get(i)) {
-                return false;
-            }
-        }
-        return true;
+        logger.info("Ordered %d administration menu entries (folders alphabetically: %s, entries in declaration order: %s)"
+                .formatted(plannedOrder.size(), foldersAlphabetically, entriesInDeclarationOrder));
+        logger.debug(() -> "Administration menu order: %s".formatted(describe(plannedOrder)));
     }
 
     /**
@@ -198,23 +129,6 @@ public final class MenuOrderRestorer {
     }
 
     /**
-     * Compares by identity rather than by {@code equals}: {@code AdministrationPageExtender} does not
-     * implement {@code equals}, and a repeated instance must count as a mismatch.
-     */
-    private static boolean holdSameEntries(@NotNull List<?> first, @NotNull List<?> second) {
-        Set<Object> firstEntries = identitySet(first);
-        // The size check also rejects a repeated instance: a set collapses repeats, so equal sets over
-        // equal-sized lists would otherwise admit one entry being dropped and another written twice.
-        return firstEntries.size() == first.size() && firstEntries.equals(identitySet(second));
-    }
-
-    private static @NotNull Set<Object> identitySet(@NotNull List<?> entries) {
-        Set<Object> result = Collections.newSetFromMap(new IdentityHashMap<>());
-        result.addAll(entries);
-        return result;
-    }
-
-    /**
      * Obtains the real provider singleton by member injection. {@code UIModule} binds the concrete class
      * as a Guice singleton, so this is the instance Polarion's own navigation code reaches through its
      * HiveMind proxy.
@@ -223,27 +137,6 @@ public final class MenuOrderRestorer {
         ProviderProbe probe = new ProviderProbe();
         GuicePlatform.tryInjectMembers(probe);
         return probe.provider;
-    }
-
-    /**
-     * Reads the provider's own list of entries. Walks the class hierarchy so a future subclass of the
-     * provider is still handled.
-     */
-    @SuppressWarnings({"unchecked", "java:S3011"})
-    static @Nullable List<AdministrationPageExtender> readLiveOrder(@NotNull AdministrationPageExtenderProvider provider) throws ReflectiveOperationException {
-        for (Class<?> type = provider.getClass(); type != null; type = type.getSuperclass()) {
-            try {
-                Field field = type.getDeclaredField(EXTENDERS_FIELD);
-                field.setAccessible(true);
-                Object value = field.get(provider);
-                // The field is declared as a list of extenders, and restore() writes into it only entries
-                // that readDeclaredOrder() has checked.
-                return value instanceof List ? (List<AdministrationPageExtender>) value : null;
-            } catch (NoSuchFieldException e) {
-                // Keep looking further up the hierarchy.
-            }
-        }
-        return null;
     }
 
     /**
