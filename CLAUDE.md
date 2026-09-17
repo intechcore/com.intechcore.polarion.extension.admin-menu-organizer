@@ -44,6 +44,34 @@ npm run dev                          # http://localhost:5173/?feature=menu-order
 npx tsc --noEmit                     # type-check (vite build does NOT type-check)
 ```
 
+## System tests
+
+They run against a **running Polarion** and are **never part of CI**. Two suites, both manual:
+
+```bash
+# The REST side: the setting is stored where it belongs, refused where it does not,
+# and a save reaches the extension (asserted through the log line it writes).
+POLARION_TOKEN=<personal access token> mvn -Psystem-tests test
+
+# The menu the server draws, in the browser. The first needs no reference image.
+cd ui && npm run systest                 # the order, on this machine
+npm run systest:docker                   # the same, plus the screenshot, in the pinned image
+npm run systest:update:docker            # rewrites ui/systest/expected/
+```
+
+- `src/test/java/.../system/*SystemTest.java` is excluded by surefire by default; the `system-tests`
+  profile includes only those. Without a Polarion answering, every one of them **skips**.
+- `ui/systest/` drives a browser: it signs in, opens Administration, reads the entries the page
+  draws and asserts the order for both modes. That is the only place the product's promise can be
+  checked end to end, because the menu is drawn by GWT and no endpoint reports it.
+- **Polarion answers only requests whose Host header matches `base.url`** (`http://localhost`), and a
+  browser writes that header from the URL it opens. Inside the container the suite therefore reaches
+  Polarion through `systest/host-bridge.mjs`, a TCP forward from `localhost:80`.
+- The settings endpoints of generic need a **session**: under a token they answer 409, "Cannot find
+  request attributes in the request context". Both suites sign in with the login form, which carries
+  a CSRF token in a hidden field.
+- The suites change the stored menu order and put back what they found.
+
 ## CI
 
 GitHub Actions runs five workflows:
