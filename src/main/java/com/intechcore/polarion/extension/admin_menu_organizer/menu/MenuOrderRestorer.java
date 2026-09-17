@@ -6,12 +6,13 @@ import com.polarion.core.util.logging.Logger;
 import com.polarion.platform.core.IPlatform;
 import com.polarion.platform.core.PlatformContext;
 import com.polarion.platform.guice.ipi.GuicePlatform;
+import com.polarion.platform.hivemind.IHiveMindPlatform;
 import jakarta.inject.Inject;
+import org.apache.hivemind.Registry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -34,11 +35,12 @@ import java.util.stream.Collectors;
  * entries in a mutable list. This class reads both, lets {@link MenuOrderPlanner} compute the order, and
  * writes it into that list as a permutation of the entries Polarion already holds.
  * <p>
- * The registry is reached through two public methods ({@code IHiveMindPlatform.getRegistry()} and
- * {@code Registry.getConfiguration(String)}), reflectively so that the {@code org.apache.hivemind} types
- * are never named at compile time and stay out of {@code Require-Bundle}. The provider's list is read
- * from a private field, which has no public equivalent. Anything unexpected is logged and leaves
- * Polarion's own order in place.
+ * The registry is reached through {@link IHiveMindPlatform#getRegistry()} and
+ * {@link Registry#getConfiguration(String)}, both public. That costs two entries in
+ * {@code Require-Bundle} ({@code com.polarion.platform.hivemind} and {@code org.apache.hivemind}) and
+ * buys a compile-time check: a signature that changes in a future Polarion breaks the build here rather
+ * than at runtime on a customer's server. The provider's list is still read from a private field, which
+ * has no public equivalent. Anything unexpected is logged and leaves Polarion's own order in place.
  * <p>
  * The provider must come from Guice, not from {@code PlatformContext.lookupService}. Its HiveMind
  * service point uses the default singleton service model, whose {@code getService()} returns a generated
@@ -50,8 +52,6 @@ public final class MenuOrderRestorer {
 
     static final String CONFIG_ID = "com.polarion.xray.webui.administrationPageExtenders";
     private static final String EXTENDERS_FIELD = "extenders";
-    private static final String GET_REGISTRY_METHOD = "getRegistry";
-    private static final String GET_CONFIGURATION_METHOD = "getConfiguration";
 
     private static final Logger logger = Logger.getLogger(MenuOrderRestorer.class);
 
@@ -251,36 +251,23 @@ public final class MenuOrderRestorer {
      * entries in declaration order. A configuration holding anything but extenders is not used.
      */
     @SuppressWarnings("unchecked")
-    static @Nullable List<AdministrationPageExtender> readDeclaredOrder(@NotNull IPlatform platform) throws ReflectiveOperationException {
-        Method getRegistry = findMethod(platform.getClass(), GET_REGISTRY_METHOD);
-        if (getRegistry == null) {
+    static @Nullable List<AdministrationPageExtender> readDeclaredOrder(@NotNull IPlatform platform) {
+        if (!(platform instanceof IHiveMindPlatform hiveMindPlatform)) {
+            // The caller warns once that the configuration is not readable. This detail says why.
+            logger.debug(() -> "%s does not carry a HiveMind registry".formatted(platform.getClass().getName()));
             return null;
         }
-        Object registry = getRegistry.invoke(platform);
+        Registry registry = hiveMindPlatform.getRegistry();
         if (registry == null) {
             return null;
         }
-        Method getConfiguration = findMethod(registry.getClass(), GET_CONFIGURATION_METHOD, String.class);
-        if (getConfiguration == null) {
-            return null;
-        }
-        Object configuration = getConfiguration.invoke(registry, CONFIG_ID);
-        if (!(configuration instanceof List<?> list) || list.isEmpty()
-                || !list.stream().allMatch(AdministrationPageExtender.class::isInstance)) {
+        List<?> configuration = registry.getConfiguration(CONFIG_ID);
+        if (configuration == null || configuration.isEmpty()
+                || !configuration.stream().allMatch(AdministrationPageExtender.class::isInstance)) {
             return null;
         }
         // Every element was checked above, so the cast is safe.
-        return (List<AdministrationPageExtender>) list;
-    }
-
-    static @Nullable Method findMethod(@NotNull Class<?> type, @NotNull String name, @NotNull Class<?>... parameterTypes) {
-        try {
-            return type.getMethod(name, parameterTypes);
-        } catch (NoSuchMethodException e) {
-            // The caller warns once that the configuration is not readable. This detail says why.
-            logger.debug(() -> "%s has no %s method".formatted(type.getName(), name));
-            return null;
-        }
+        return (List<AdministrationPageExtender>) configuration;
     }
 
     /** Member-injection target used only to obtain the provider singleton, see {@link #lookupProvider()}. */
