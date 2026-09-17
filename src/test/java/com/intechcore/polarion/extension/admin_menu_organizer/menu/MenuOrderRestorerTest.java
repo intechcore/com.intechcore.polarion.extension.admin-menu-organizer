@@ -4,10 +4,13 @@ import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRest
 import com.polarion.alm.administration.web.server.AdministrationPageExtender;
 import com.polarion.alm.administration.web.server.AdministrationPageExtenderProvider;
 import com.polarion.platform.core.IPlatform;
+import com.polarion.platform.core.PlatformContext;
 import com.polarion.platform.hivemind.IHiveMindPlatform;
 import org.apache.hivemind.Registry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -16,11 +19,15 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -162,6 +169,90 @@ class MenuOrderRestorerTest {
     }
 
     // --- The whole pipeline, driven with Polarion's real provider and a stand-in platform ---
+
+    /** The outcome is what the settings turn into the message of a failed request. */
+    @Test
+    void reportsWhetherTheMenuHoldsTheRequestedOrder() {
+        AdministrationPageExtender about = realExtender("about");
+        AdministrationPageExtender css = realExtender("css");
+        AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
+        provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, about)));
+        MenuOrderModes bothOn = new MenuOrderModes(true, true);
+
+        assertTrue(MenuOrderRestorer.apply(provider, platformWith(registryHolding(List.of(about, css))),
+                Trigger.MODES_CHANGED, bothOn));
+        // Nothing to read the declared order from, so the menu keeps whatever Polarion built.
+        assertFalse(MenuOrderRestorer.apply(provider, mock(IPlatform.class), Trigger.MODES_CHANGED, bothOn));
+        // At startup an unconfigured menu is left alone, and that is the order the modes ask for.
+        assertTrue(MenuOrderRestorer.apply(provider, mock(IPlatform.class), Trigger.STARTUP,
+                new MenuOrderModes(false, false)));
+    }
+
+    /** Outside a running Polarion nothing can be applied, and the entry points have to say so. */
+    @Test
+    void reportsAFailureOutsideARunningPolarion() {
+        assertFalse(MenuOrderRestorer.apply(new MenuOrderModes(true, true)));
+    }
+
+    /**
+     * Stands in for Guice, which cannot be mocked here: Byte Buddy refuses to instrument
+     * {@code GuicePlatform}. The probe is what Guice fills, so the probe is filled instead.
+     */
+    private static MockedConstruction<MenuOrderRestorer.ProviderProbe> probeHolding(AdministrationPageExtenderProvider provider) {
+        return mockConstruction(MenuOrderRestorer.ProviderProbe.class, (probe, context) -> probe.provider = provider);
+    }
+
+    /** The whole entry point, with the two lookups it makes standing in for Polarion. */
+    @Test
+    void appliesThroughTheProviderPolarionInjects() throws Exception {
+        AdministrationPageExtender about = realExtender("about");
+        AdministrationPageExtender css = realExtender("css");
+        AdministrationPageExtenderProvider provider = new AdministrationPageExtenderProvider();
+        provider.setAdministrationPageExtenders(new LinkedHashSet<>(List.of(css, about)));
+
+        // Built before the stubbing: a mock created inside thenReturn(...) opens a second stubbing.
+        IPlatform platform = platformWith(registryHolding(List.of(about, css)));
+
+        try (MockedConstruction<MenuOrderRestorer.ProviderProbe> ignored = probeHolding(provider);
+             MockedStatic<PlatformContext> platformContext = mockStatic(PlatformContext.class)) {
+            platformContext.when(PlatformContext::getPlatform).thenReturn(platform);
+
+            assertTrue(MenuOrderRestorer.apply(new MenuOrderModes(false, true)));
+        }
+
+        assertEquals("ext/about, ext/css", MenuOrderRestorer.describe(liveOrderOf(provider)));
+    }
+
+    /**
+     * A Polarion that answers a lookup with a failure must not take the request down with it. The
+     * entry point reports that the menu was not reordered, and Polarion's own order is kept.
+     */
+    @Test
+    void reportsAFailingPlatformLookup() {
+        try (MockedConstruction<MenuOrderRestorer.ProviderProbe> ignored = probeHolding(new AdministrationPageExtenderProvider());
+             MockedStatic<PlatformContext> platformContext = mockStatic(PlatformContext.class)) {
+            platformContext.when(PlatformContext::getPlatform).thenThrow(new IllegalStateException("platform was not initialized yet"));
+
+            assertFalse(MenuOrderRestorer.apply(new MenuOrderModes(true, true)));
+        }
+    }
+
+    /** A linkage error is caught as well: a Polarion upgrade can remove a type this class names. */
+    @Test
+    void reportsALinkageError() {
+        try (MockedConstruction<MenuOrderRestorer.ProviderProbe> ignored = probeHolding(new AdministrationPageExtenderProvider());
+             MockedStatic<PlatformContext> platformContext = mockStatic(PlatformContext.class)) {
+            platformContext.when(PlatformContext::getPlatform).thenThrow(new NoSuchMethodError("IHiveMindPlatform.getRegistry()"));
+
+            assertFalse(MenuOrderRestorer.apply(new MenuOrderModes(true, true)));
+        }
+    }
+
+    /** A registry that answers the configuration point with nothing leaves the menu alone. */
+    @Test
+    void readsNoDeclaredOrderWhenTheConfigurationIsMissing() {
+        assertNull(MenuOrderRestorer.readDeclaredOrder(platformWith(registryHolding(null))));
+    }
 
     @Test
     void ordersTheProvidersEntriesByDeclaration() throws Exception {

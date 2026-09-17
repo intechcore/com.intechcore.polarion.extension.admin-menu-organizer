@@ -3,6 +3,7 @@ package com.intechcore.polarion.extension.admin_menu_organizer.settings;
 import ch.sbb.polarion.extension.generic.settings.GenericNamedSettings;
 import ch.sbb.polarion.extension.generic.settings.SettingId;
 import ch.sbb.polarion.extension.generic.settings.SettingsService;
+import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderModes;
 import com.intechcore.polarion.extension.admin_menu_organizer.menu.MenuOrderRestorer;
 import com.polarion.platform.core.PlatformContext;
 import com.polarion.platform.security.ISecurityService;
@@ -46,7 +47,7 @@ public class MenuOrderSettings extends GenericNamedSettings<MenuOrderSettingsMod
 
     @Override
     public void afterSave(@NotNull MenuOrderSettingsModel what) {
-        MenuOrderRestorer.apply(what.modes());
+        applyOrReport(what.modes(), "The settings were saved");
     }
 
     /**
@@ -57,7 +58,19 @@ public class MenuOrderSettings extends GenericNamedSettings<MenuOrderSettingsMod
     public void delete(@NotNull String scope, @NotNull SettingId id) {
         super.delete(scope, id);
         MenuOrderSettingsModel stored = read(DEFAULT_SCOPE, SettingId.fromName(DEFAULT_NAME), null);
-        MenuOrderRestorer.apply(stored.modes());
+        applyOrReport(stored.modes(), "The setting was deleted");
+    }
+
+    /**
+     * The menu is reordered in the same request that stores the setting. When that fails, the stored
+     * modes and the live menu disagree, and without this the caller is told the request succeeded. The
+     * stored value is kept: it is what the next server start applies.
+     */
+    private static void applyOrReport(@NotNull MenuOrderModes modes, @NotNull String stored) {
+        if (!MenuOrderRestorer.apply(modes)) {
+            throw new IllegalStateException(stored + ", but the administration menu was not reordered. "
+                    + "The Polarion log says why.");
+        }
     }
 
     /** Reads the stored modes as the system user: at server start there is no user session to read them with. */
