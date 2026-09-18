@@ -81,8 +81,10 @@ npm run systest:update:docker            # rewrites ui/systest/expected/
 - The settings endpoints of generic need a **session**: under a token they answer 409, "Cannot find
   request attributes in the request context". Both suites sign in with the login form, which carries
   a CSRF token in a hidden field.
-- The suites change the stored menu order and put back what they found. **What they cannot put back
-  is the revision history**: every save writes a revision of the global `Default` setting, and those
+- The suites change the stored menu order and put back what they found. A server that stored no
+  setting gets it removed again: the revisions endpoint is what tells "nothing stored" from "both
+  modes off", because the content endpoint answers the defaults for both. **What they cannot put
+  back is the revision history**: every save writes a revision of the global `Default` setting, and those
   stay. A run leaves about ten of them. Run the suites against a development instance, not against a
   server whose settings history anyone reads.
 

@@ -32,23 +32,34 @@ class MenuOrderSystemTest {
 
     private static final String SETTINGS = "/polarion/admin-menu-organizer/rest/internal/settings/menu-order";
     private static final String CONTENT = SETTINGS + "/names/Default/content?scope=";
+    private static final String REVISIONS = SETTINGS + "/names/Default/revisions?scope=";
+    private static final String SETTING = SETTINGS + "/names/Default?scope=";
 
     private final PolarionSystemTestSupport polarion = new PolarionSystemTestSupport();
 
+    /** Set once the state of the server was read, so a setup that failed puts nothing back. */
+    private boolean captured;
+
     /**
-     * The modes of the server as the run found them. They are one global setting, which the browser
-     * suite writes too: run one suite at a time against an instance, or one cleanup puts back what
-     * the other one was using.
+     * The modes of the server as the run found them, or null when it stored none. They are one
+     * global setting, which the browser suite writes too: run one suite at a time against an
+     * instance, or one cleanup puts back what the other one was using.
      */
     private String storedModes;
 
     @BeforeAll
-    void signInAndRememberTheStoredModes() {
+    void signInAndRememberWhatTheServerHolds() {
         PolarionSystemTestSupport.assumeAPolarionIsRunning();
         polarion.logIn();
 
-        JsonNode stored = polarion.json(CONTENT);
-        storedModes = modes(mode(stored, "foldersAlphabetically"), mode(stored, "entriesInDeclarationOrder"));
+        // A server that stores nothing answers the content endpoint with the defaults, which reads
+        // the same as two false modes. The revisions tell the two apart: they are empty exactly
+        // while nothing is stored, and a run that found no setting has to leave none behind.
+        if (revisionCount() > 0) {
+            JsonNode stored = polarion.json(CONTENT);
+            storedModes = modes(mode(stored, "foldersAlphabetically"), mode(stored, "entriesInDeclarationOrder"));
+        }
+        captured = true;
     }
 
     /**
@@ -56,8 +67,14 @@ class MenuOrderSystemTest {
      * read back: a silent failure here would leave a live server carrying the modes of a test.
      */
     @AfterAll
-    void restoreTheStoredModes() {
+    void restoreWhatTheServerHeld() {
+        if (!captured) {
+            return;
+        }
         if (storedModes == null) {
+            HttpResponse<String> deleted = polarion.delete(SETTING);
+            assertThat(deleted.statusCode()).as("removing the setting the run created: %s", deleted.body()).isIn(200, 204);
+            assertThat(revisionCount()).as("the server stored no setting before the run").isZero();
             return;
         }
         HttpResponse<String> restored = polarion.put(CONTENT, storedModes);
@@ -143,7 +160,7 @@ class MenuOrderSystemTest {
     }
 
     private int revisionCount() {
-        JsonNode revisions = polarion.json(SETTINGS + "/names/Default/revisions?scope=");
+        JsonNode revisions = polarion.json(REVISIONS);
         assertThat(revisions.isArray()).as("the revisions of the setting").isTrue();
         return revisions.size();
     }

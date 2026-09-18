@@ -10,7 +10,10 @@ export const BASE_URL = process.env.POLARION_URL || 'http://localhost';
 const USER = process.env.POLARION_USER || 'admin';
 const PASSWORD = process.env.POLARION_PASSWORD || 'admin';
 
-const SETTINGS = '/polarion/admin-menu-organizer/rest/internal/settings/menu-order/names/Default/content?scope=';
+const FEATURE = '/polarion/admin-menu-organizer/rest/internal/settings/menu-order';
+const SETTINGS = `${FEATURE}/names/Default/content?scope=`;
+const REVISIONS = `${FEATURE}/names/Default/revisions?scope=`;
+const SETTING = `${FEATURE}/names/Default?scope=`;
 
 /** A Polarion built-in section, used as the anchor of the menu in the page. */
 const ANCHOR = 'Configuration Properties';
@@ -225,6 +228,30 @@ async function rejectAPageInsteadOfTheSetting(response, what) {
   }
   if (!response.ok() && response.status() !== 204) {
     throw new Error(`${what} answered ${response.status()}: ${await response.text()}`);
+  }
+}
+
+/**
+ * Answers whether the server holds a stored setting. The content endpoint cannot tell: with nothing
+ * stored it answers the defaults, and so does a setting of two false modes. The revisions can: they
+ * are empty exactly while nothing is stored. A run that found no setting has to leave none behind.
+ */
+export async function settingIsStored(page) {
+  const response = await page.request.get(`${BASE_URL}${REVISIONS}`);
+  await rejectAPageInsteadOfTheSetting(response, 'Reading the revisions');
+  const revisions = await response.json();
+  if (!Array.isArray(revisions)) {
+    throw new Error(`The revisions are not a list: ${JSON.stringify(revisions)}`);
+  }
+  return revisions.length > 0;
+}
+
+/** Removes the setting, which is what putting back "there was none" means. */
+export async function deleteTheSetting(page) {
+  const response = await page.request.delete(`${BASE_URL}${SETTING}`);
+  await rejectAPageInsteadOfTheSetting(response, 'Deleting the setting');
+  if (await settingIsStored(page)) {
+    throw new Error('The setting is still stored after it was deleted');
   }
 }
 

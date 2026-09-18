@@ -1,12 +1,14 @@
 import { expect, test } from '@playwright/test';
 import {
   applyModes,
+  deleteTheSetting,
   extensionSections,
   openAdministration,
   openSection,
   readModes,
   rowRect,
   saveModes,
+  settingIsStored,
   signIn,
 } from './polarion.mjs';
 
@@ -20,9 +22,11 @@ const sortedCaseInsensitively = (names) => [...names].sort(collator.compare);
 
 test.describe.configure({ mode: 'serial' });
 
-// The modes of the server as the run found them. They are one global setting, which the Java suite
-// writes too: run one suite at a time against an instance, or one cleanup puts back what the other
-// one was using.
+// What the server held before the run. The modes are one global setting, which the Java suite writes
+// too: run one suite at a time against an instance, or one cleanup puts back what the other one was
+// using. A server that stored nothing is a state of its own: the modes stay undefined, and the
+// cleanup removes the setting instead of writing one that was never there.
+let captured = false;
 let storedModes;
 
 /** browser.newPage() takes no settings from the project, so the ones that matter are passed on. */
@@ -35,20 +39,27 @@ test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage(pageOptions());
   await signIn(page);
   await openAdministration(page);
-  storedModes = await readModes(page);
+  if (await settingIsStored(page)) {
+    storedModes = await readModes(page);
+  }
+  captured = true;
   await page.close();
 });
 
 test.afterAll(async ({ browser }) => {
   // Nothing was read, so there is nothing to put back: a setup that failed before this was captured
   // must not have its failure buried under an invalid cleanup request.
-  if (!storedModes) return;
+  if (!captured) return;
   const page = await browser.newPage(pageOptions());
   try {
     // The session is all this needs. Opening the administration could fail for the very reason the
     // run was investigating, and the live server would keep the modes of a test.
     await signIn(page);
-    await saveModes(page, storedModes);
+    if (storedModes) {
+      await saveModes(page, storedModes);
+    } else {
+      await deleteTheSetting(page);
+    }
   } finally {
     await page.close();
   }
