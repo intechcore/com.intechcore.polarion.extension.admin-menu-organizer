@@ -16,6 +16,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The settings endpoints of the generic framework need a session. Under a token they answer 409,
  * "Cannot find request attributes in the request context", so this signs in with the login form.
  * <p>
+ * Every save writes a revision of the global {@code Default} setting, and a revision cannot be
+ * removed through the API. The modes are put back, the history is not: run this against a
+ * development instance.
+ * <p>
  * The order the menu is drawn in is asserted by the Playwright suite in {@code ui/systest}, which
  * reads it from the page. What is asserted here is everything up to that point: the setting is
  * stored where it belongs and refused where it does not. Whether the save reached the menu is a

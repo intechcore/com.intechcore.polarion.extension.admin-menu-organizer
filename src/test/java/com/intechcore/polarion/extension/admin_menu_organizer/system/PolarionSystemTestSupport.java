@@ -26,13 +26,14 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * <p>
  * Polarion answers an extension's REST calls in two contexts. {@code /api} takes a personal access
  * token, and {@code /internal} takes a session. Generic's settings endpoints need the session: under
- * a token they answer 409, "Cannot find request attributes in the request context". The login form
- * carries a CSRF token, so signing in takes two requests.
+ * a token they answer 409, "Cannot find request attributes in the request context". Every call of
+ * this suite goes to {@code /internal}, so a token is neither needed nor sent, and the credentials
+ * are {@code POLARION_USER} and {@code POLARION_PASSWORD}. The login form carries a CSRF token, so
+ * signing in takes two requests.
  */
 final class PolarionSystemTestSupport {
 
     static final String BASE_URL = System.getenv().getOrDefault("POLARION_URL", "http://localhost");
-    static final String TOKEN = System.getenv("POLARION_TOKEN");
     static final String USER = System.getenv().getOrDefault("POLARION_USER", "admin");
     static final String PASSWORD = System.getenv().getOrDefault("POLARION_PASSWORD", "admin");
 
@@ -46,11 +47,10 @@ final class PolarionSystemTestSupport {
             .build();
 
     /**
-     * Skips the test when there is no Polarion to talk to, or no token to talk with. A system test
-     * that cannot run is not a failing test: it is one that was not asked for.
+     * Skips the test when there is no Polarion to talk to. A system test that cannot run is not a
+     * failing test: it is one that was not asked for.
      */
     static void assumeAPolarionIsRunning() {
-        assumeTrue(TOKEN != null && !TOKEN.isBlank(), "POLARION_TOKEN is not set");
         assumeTrue(answers(), "No Polarion answers at " + BASE_URL);
     }
 
@@ -72,41 +72,33 @@ final class PolarionSystemTestSupport {
 
     /** Signs in with the login form, which is what the {@code /internal} endpoints answer to. */
     void logIn() {
-        String loginPage = send(request("/polarion/").GET(), "/rest/internal").body();
+        String loginPage = send(request("/polarion/").GET()).body();
         Matcher csrfToken = CSRF_TOKEN.matcher(loginPage);
         String form = "j_username=%s&j_password=%s&target=%s".formatted(encode(USER), encode(PASSWORD), encode("/polarion/"))
                 + (csrfToken.find() ? "&csrfToken=" + encode(csrfToken.group(1)) : "");
 
         HttpResponse<String> response = send(request("/polarion/j_security_check")
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .POST(HttpRequest.BodyPublishers.ofString(form)), "/rest/internal");
+                .POST(HttpRequest.BodyPublishers.ofString(form)));
         if (response.statusCode() != 303 && response.statusCode() != 302 && response.statusCode() != 200) {
             throw new IllegalStateException("Could not sign in as " + USER + ": HTTP " + response.statusCode());
         }
     }
 
     HttpResponse<String> get(@NotNull String path) {
-        return send(request(path).GET(), path);
-    }
-
-    /**
-     * Fetches as the signed-in user, without the token. The files a {@code GenericUiServlet} serves
-     * need a Polarion session: a request carrying only a token is answered with the login page.
-     */
-    HttpResponse<String> getAsUser(@NotNull String path) {
-        return send(request(path).GET(), "/rest/internal");
+        return send(request(path).GET());
     }
 
     HttpResponse<String> put(@NotNull String path, @NotNull String body) {
-        return send(request(path).header("Content-Type", "application/json").PUT(HttpRequest.BodyPublishers.ofString(body)), path);
+        return send(request(path).header("Content-Type", "application/json").PUT(HttpRequest.BodyPublishers.ofString(body)));
     }
 
     HttpResponse<String> post(@NotNull String path, @NotNull String body) {
-        return send(request(path).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)), path);
+        return send(request(path).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)));
     }
 
     HttpResponse<String> delete(@NotNull String path) {
-        return send(request(path).DELETE(), path);
+        return send(request(path).DELETE());
     }
 
     @NotNull JsonNode json(@NotNull String path) {
@@ -133,12 +125,7 @@ final class PolarionSystemTestSupport {
         return HttpRequest.newBuilder(URI.create(BASE_URL + path)).timeout(Duration.ofMinutes(2));
     }
 
-    private HttpResponse<String> send(@NotNull HttpRequest.Builder builder, @NotNull String path) {
-        // The token reaches /api and the REST v1 endpoints. An /internal call must go with the session
-        // cookie alone: sent together, the token wins and the call is refused.
-        if (!path.contains("/rest/internal") && TOKEN != null && !TOKEN.isBlank()) {
-            builder = builder.header("Authorization", "Bearer " + TOKEN);
-        }
+    private HttpResponse<String> send(@NotNull HttpRequest.Builder builder) {
         try {
             return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { applyModes, openAdministration, openSection, readMenu, readModes, signIn } from './polarion.mjs';
+import { applyModes, openAdministration, openSection, readMenu, readModes, saveModes, signIn } from './polarion.mjs';
 
 const SECTION = 'Admin Menu Organizer';
 /** The order of META-INF/hivemodule.xml, which is what "pages in declaration order" means. */
@@ -30,10 +30,14 @@ test.afterAll(async ({ browser }) => {
   // must not have its failure buried under an invalid cleanup request.
   if (!storedModes) return;
   const page = await browser.newPage();
-  await signIn(page);
-  await openAdministration(page);
-  await applyModes(page, storedModes);
-  await page.close();
+  try {
+    // The session is all this needs. Opening the administration could fail for the very reason the
+    // run was investigating, and the live server would keep the modes of a test.
+    await signIn(page);
+    await saveModes(page, storedModes);
+  } finally {
+    await page.close();
+  }
 });
 
 test('sorts the sections of the extensions and keeps the pages of one in declaration order', async ({ page }) => {
@@ -84,14 +88,22 @@ test('the section looks the way it is published', async ({ page }) => {
   // nothing of the other extensions installed on the instance.
   const clip = await page.evaluate(
     ([section, lastPage]) => {
-      const rowOf = (text) => {
-        const leaf = Array.from(document.querySelectorAll('*')).find(
-          (element) => element.children.length === 0 && (element.textContent || '').trim() === text,
-        );
-        return leaf?.closest('tr')?.getBoundingClientRect();
-      };
-      const first = rowOf(section);
-      const last = rowOf(lastPage);
+      // The leaves in the order the document holds them, so the page can be looked for below its
+      // section: another extension may well contribute a page with the same label, and searching
+      // the whole document could land on its row.
+      const leaves = Array.from(document.querySelectorAll('*')).filter(
+        (element) => element.children.length === 0 && (element.textContent || '').trim(),
+      );
+      const at = (text, from) =>
+        leaves.findIndex((leaf, index) => index >= from && (leaf.textContent || '').trim() === text);
+      const sectionLeaf = at(section, 0);
+      const lastPageLeaf = sectionLeaf < 0 ? -1 : at(lastPage, sectionLeaf + 1);
+      if (sectionLeaf < 0 || lastPageLeaf < 0) return null;
+
+      // The innermost row of each: the menu is drawn as nested tables, and an outer row holds all
+      // of it.
+      const first = leaves[sectionLeaf].closest('tr')?.getBoundingClientRect();
+      const last = leaves[lastPageLeaf].closest('tr')?.getBoundingClientRect();
       if (!first || !last) return null;
       // The width of the navigation column, so nothing of the content area is in the frame.
       const column = first.left + first.width;
@@ -99,6 +111,7 @@ test('the section looks the way it is published', async ({ page }) => {
     },
     [SECTION, DECLARED_PAGES[DECLARED_PAGES.length - 1]],
   );
+
   expect(clip).not.toBeNull();
 
   await expect(page).toHaveScreenshot('menu-section.png', { clip, animations: 'disabled' });

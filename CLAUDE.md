@@ -51,7 +51,9 @@ They run against a **running Polarion** and are **never part of CI**. Two suites
 
 ```bash
 # The REST side: the setting is stored where it belongs and refused where it does not.
-POLARION_TOKEN=<personal access token> mvn -Psystem-tests test
+# The credentials are POLARION_USER and POLARION_PASSWORD, admin/admin by default. No token:
+# every call goes to /internal, which takes a session.
+mvn -Psystem-tests test
 
 # The menu the server draws, in the browser. The first needs no reference image.
 cd ui && npm run systest                 # the order, on this machine
@@ -74,7 +76,10 @@ npm run systest:update:docker            # rewrites ui/systest/expected/
 - The settings endpoints of generic need a **session**: under a token they answer 409, "Cannot find
   request attributes in the request context". Both suites sign in with the login form, which carries
   a CSRF token in a hidden field.
-- The suites change the stored menu order and put back what they found.
+- The suites change the stored menu order and put back what they found. **What they cannot put back
+  is the revision history**: every save writes a revision of the global `Default` setting, and those
+  stay. A run leaves about ten of them. Run the suites against a development instance, not against a
+  server whose settings history anyone reads.
 
 ## CI
 

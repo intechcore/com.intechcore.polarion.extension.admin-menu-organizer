@@ -120,12 +120,20 @@ export async function readModes(page) {
   };
 }
 
-/** Saves the modes and reloads, because the menu is drawn once per page load. */
-export async function applyModes(page, modes) {
+/**
+ * Stores the modes. Nothing is drawn again: use it where only the stored value matters, such as
+ * putting back what the run found, which must not depend on a page that opens.
+ */
+export async function saveModes(page, modes) {
   const response = await page.request.put(`${BASE_URL}${SETTINGS}`, { data: modes });
   if (!response.ok() && response.status() !== 204) {
     throw new Error(`Saving the modes answered ${response.status()}: ${await response.text()}`);
   }
+}
+
+/** Saves the modes and reloads, because the menu is drawn once per page load. */
+export async function applyModes(page, modes) {
+  await saveModes(page, modes);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await openAdministration(page);
 }
