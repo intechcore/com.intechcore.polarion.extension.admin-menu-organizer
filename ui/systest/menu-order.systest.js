@@ -7,7 +7,10 @@ const DECLARED_PAGES = ['About', 'Disclaimer', 'REST API', 'Menu Order'];
 /** Polarion's own sections come first and keep their fixed order; the extensions follow this one. */
 const ANCHOR = 'Configuration Properties';
 
-const sortedCaseInsensitively = (names) => [...names].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+// MenuOrderPlanner sorts with a java.text.Collator on Locale.ROOT at SECONDARY strength: the case
+// is ignored and an accent is not. Intl.Collator with sensitivity 'accent' is the same rule.
+const collator = new Intl.Collator('en', { sensitivity: 'accent' });
+const sortedCaseInsensitively = (names) => [...names].sort(collator.compare);
 const extensionSections = (menu) => menu.slice(menu.indexOf(ANCHOR) + 1);
 
 test.describe.configure({ mode: 'serial' });
@@ -47,16 +50,19 @@ test('returns to the order Polarion builds when both modes are off', async ({ pa
   await signIn(page);
   await openAdministration(page);
 
+  // The order Polarion built at startup, which is what switching the modes off has to return to.
+  // It follows identity hash codes, so it is read rather than predicted, and it does not change
+  // while the server runs.
+  await applyModes(page, { foldersAlphabetically: false, entriesInDeclarationOrder: false });
+  const baseline = extensionSections(await readMenu(page));
+
   await applyModes(page, { foldersAlphabetically: true, entriesInDeclarationOrder: true });
   const sorted = extensionSections(await readMenu(page));
+  expect(sorted).toEqual(sortedCaseInsensitively(sorted));
 
   await applyModes(page, { foldersAlphabetically: false, entriesInDeclarationOrder: false });
-  const own = extensionSections(await readMenu(page));
 
-  // The same sections, in the order Polarion built at startup. That order follows identity hash
-  // codes, so the only safe assertions are the set and that it is not the sorted one.
-  expect([...own].sort()).toEqual([...sorted].sort());
-  expect(own).not.toEqual(sortedCaseInsensitively(own));
+  expect(extensionSections(await readMenu(page))).toEqual(baseline);
 });
 
 test('the section looks the way it is published', async ({ page }) => {

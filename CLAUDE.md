@@ -49,8 +49,7 @@ npx tsc --noEmit                     # type-check (vite build does NOT type-chec
 They run against a **running Polarion** and are **never part of CI**. Two suites, both manual:
 
 ```bash
-# The REST side: the setting is stored where it belongs, refused where it does not,
-# and a save reaches the extension (asserted through the log line it writes).
+# The REST side: the setting is stored where it belongs and refused where it does not.
 POLARION_TOKEN=<personal access token> mvn -Psystem-tests test
 
 # The menu the server draws, in the browser. The first needs no reference image.
@@ -63,7 +62,11 @@ npm run systest:update:docker            # rewrites ui/systest/expected/
   profile includes only those. Without a Polarion answering, every one of them **skips**.
 - `ui/systest/` drives a browser: it signs in, opens Administration, reads the entries the page
   draws and asserts the order for both modes. That is the only place the product's promise can be
-  checked end to end, because the menu is drawn by GWT and no endpoint reports it.
+  checked end to end, because the menu is drawn by GWT and no endpoint reports it. Whether a save
+  reached the live menu is therefore asserted there, not from the log: this repository does not
+  assert log output.
+- The order with both modes off is **read as a baseline**, not predicted: it follows identity hash
+  codes. The suite compares what it gets back after switching the modes off with that baseline.
 - **Polarion answers only requests whose Host header matches `base.url`** (`http://localhost`), and a
   browser writes that header from the URL it opens. Inside the container the suite therefore reaches
   Polarion through `systest/host-bridge.mjs`, a TCP forward from `localhost:80`.

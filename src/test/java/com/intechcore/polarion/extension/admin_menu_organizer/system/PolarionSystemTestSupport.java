@@ -60,7 +60,11 @@ final class PolarionSystemTestSupport {
                     HttpRequest.newBuilder(URI.create(BASE_URL + "/polarion/")).timeout(Duration.ofSeconds(10)).GET().build(),
                     HttpResponse.BodyHandlers.discarding());
             return response.statusCode() < 500;
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
+            return false;
+        } catch (InterruptedException e) {
+            // Only a real interruption restores the flag: doing it for a refused connection would
+            // leave the flag set on the JUnit worker and break whatever blocks next.
             Thread.currentThread().interrupt();
             return false;
         }
@@ -137,9 +141,11 @@ final class PolarionSystemTestSupport {
         }
         try {
             return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
+        } catch (IOException e) {
             throw new IllegalStateException("Request to " + BASE_URL + " failed", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Request to " + BASE_URL + " was interrupted", e);
         }
     }
 }

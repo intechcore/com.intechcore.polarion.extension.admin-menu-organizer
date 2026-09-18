@@ -78,10 +78,17 @@ export async function readMenu(page) {
 
 /** Expands a section so its pages are drawn, and answers the pages in the order they appear. */
 export async function openSection(page, section) {
-  const before = await readMenu(page);
+  let before = await readMenu(page);
   await page.getByText(section, { exact: true }).first().click();
   await page.waitForTimeout(3000);
-  const after = await readMenu(page);
+  let after = await readMenu(page);
+  if (after.length < before.length) {
+    // The session returned with the section already expanded, so that click collapsed it.
+    before = after;
+    await page.getByText(section, { exact: true }).first().click();
+    await page.waitForTimeout(3000);
+    after = await readMenu(page);
+  }
   const at = after.indexOf(section);
   const pages = [];
   for (let i = at + 1; i < after.length; i++) {

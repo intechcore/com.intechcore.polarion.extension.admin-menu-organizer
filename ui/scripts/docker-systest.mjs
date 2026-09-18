@@ -59,7 +59,13 @@ const args = [
   `npm ci && (node systest/host-bridge.mjs &) && sleep 2 && npx playwright test -c playwright.systest.config.js ${extraArgs.join(' ')}`,
 ];
 
-console.log(`> docker ${args.join(' ')}`);
+// The command carries POLARION_PASSWORD and POLARION_TOKEN, and this line goes to a terminal or a
+// log. What is printed is the shape of the call, not the values.
+const SECRETS = ['POLARION_PASSWORD', 'POLARION_TOKEN'];
+const redacted = args.map((arg) =>
+  SECRETS.some((name) => arg.startsWith(`${name}=`)) ? `${arg.split('=')[0]}=***` : arg,
+);
+console.log(`> docker ${redacted.join(' ')}`);
 const result = spawnSync('docker', args, { stdio: 'inherit' });
 if (result.error) {
   console.error(`Failed to launch docker: ${result.error.message}. Is Docker installed and running?`);

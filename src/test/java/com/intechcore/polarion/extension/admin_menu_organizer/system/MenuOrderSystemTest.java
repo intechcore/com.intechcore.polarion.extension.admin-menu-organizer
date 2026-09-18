@@ -6,16 +6,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import java.io.IOException;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Runs against a running Polarion, never on CI: {@code mvn -Psystem-tests test}.
@@ -25,7 +18,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * <p>
  * The order the menu is drawn in is asserted by the Playwright suite in {@code ui/systest}, which
  * reads it from the page. What is asserted here is everything up to that point: the setting is
- * stored where it belongs, refused where it does not, and the save reaches the extension.
+ * stored where it belongs and refused where it does not. Whether the save reached the menu is a
+ * question about the drawn order, so it belongs to that other suite, and this repository does not
+ * assert log output.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MenuOrderSystemTest {
@@ -45,12 +40,20 @@ class MenuOrderSystemTest {
         storedModes = modes(stored.path("foldersAlphabetically").asBoolean(), stored.path("entriesInDeclarationOrder").asBoolean());
     }
 
-    /** Whatever the server held before the run is what it holds after it. */
+    /**
+     * Whatever the server held before the run is what it holds after it. The write is checked and
+     * read back: a silent failure here would leave a live server carrying the modes of a test.
+     */
     @AfterAll
     void restoreTheStoredModes() {
-        if (storedModes != null) {
-            polarion.put(CONTENT, storedModes);
+        if (storedModes == null) {
+            return;
         }
+        HttpResponse<String> restored = polarion.put(CONTENT, storedModes);
+        assertThat(restored.statusCode()).as("restoring the stored modes: %s", restored.body()).isIn(200, 204);
+        JsonNode read = polarion.json(CONTENT);
+        assertThat(modes(read.path("foldersAlphabetically").asBoolean(), read.path("entriesInDeclarationOrder").asBoolean()))
+                .as("the modes the server held before the run").isEqualTo(storedModes);
     }
 
     private static String modes(boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
@@ -124,34 +127,4 @@ class MenuOrderSystemTest {
         assertThat(revisions).as("a saved setting has at least one revision").isNotEmpty();
     }
 
-    /**
-     * The save reorders the menu in the same request, and the extension says so in the log. Without a
-     * readable log directory this is skipped: the rendered order is asserted by the Playwright suite.
-     */
-    @Test
-    void reordersTheMenuWhenTheModesAreSaved() throws IOException, InterruptedException {
-        Path logDirectory = Path.of(System.getenv().getOrDefault("POLARION_LOG_DIR",
-                System.getenv().getOrDefault("POLARION_HOME", "/opt/polarion") + "/data/logs/main"));
-        assumeTrue(Files.isDirectory(logDirectory), "No readable Polarion log directory at " + logDirectory);
-
-        long linesBefore = orderedLines(logDirectory);
-        saveAndReadBack(true, true);
-        // The write happens inside the request, the log flush right after it.
-        Thread.sleep(2000);
-
-        assertThat(orderedLines(logDirectory)).as("a line reporting the new order").isGreaterThan(linesBefore);
-    }
-
-    private static long orderedLines(Path logDirectory) throws IOException {
-        Path newest;
-        try (Stream<Path> logs = Files.list(logDirectory)) {
-            newest = logs.filter(path -> path.getFileName().toString().startsWith("log4j-"))
-                    .max(Comparator.comparing(path -> path.toFile().lastModified()))
-                    .orElseThrow(() -> new IllegalStateException("No log file in " + logDirectory));
-        }
-        try (Stream<String> lines = Files.lines(newest)) {
-            List<String> ordered = lines.filter(line -> line.contains("Ordered ") && line.contains("administration menu entries")).toList();
-            return ordered.size();
-        }
-    }
 }
