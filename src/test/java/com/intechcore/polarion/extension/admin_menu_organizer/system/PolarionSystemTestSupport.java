@@ -101,17 +101,34 @@ final class PolarionSystemTestSupport {
         return send(request(path).DELETE());
     }
 
+    /**
+     * Reads a setting. A call made without a session is answered with the login page and status 200,
+     * not with a redirect and not with 401, so the status alone proves nothing: what comes back has
+     * to be JSON, and it has to hold something. Read as "null", an answer like that would arrive at
+     * the caller as both modes being off, and the run would write that back as what it found.
+     */
     @NotNull JsonNode json(@NotNull String path) {
         HttpResponse<String> response = get(path);
         if (response.statusCode() != 200) {
             throw new IllegalStateException("GET %s answered %d: %s".formatted(path, response.statusCode(), response.body()));
         }
-        return parse(response.body());
+        String contentType = response.headers().firstValue("content-type").orElse("");
+        if (contentType.contains("text/html")) {
+            throw new IllegalStateException("GET %s was answered with a page rather than the setting: there is no session".formatted(path));
+        }
+        String body = response.body();
+        if (body == null || body.isBlank()) {
+            throw new IllegalStateException("GET %s answered with an empty body".formatted(path));
+        }
+        return parse(body);
     }
 
     static @NotNull JsonNode parse(@Nullable String body) {
+        if (body == null || body.isBlank()) {
+            throw new IllegalStateException("An empty body is not a setting");
+        }
         try {
-            return JSON.readTree(body == null || body.isBlank() ? "null" : body);
+            return JSON.readTree(body);
         } catch (IOException e) {
             throw new IllegalStateException("Not JSON: " + body, e);
         }
