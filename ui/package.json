@@ -12,6 +12,9 @@
     "test:update": "node -e \"process.platform==='linux'||(console.error('\\n[test:update] Reference screenshots must be generated on Linux (inside the pinned Playwright Docker image). Use npm run test:update:docker.\\n'),process.exit(1))\" && vitest run --update",
     "test:docker": "node scripts/docker-test.mjs test",
     "test:update:docker": "node scripts/docker-test.mjs test:update",
+    "systest": "playwright test -c playwright.systest.config.js",
+    "systest:docker": "node scripts/docker-systest.mjs",
+    "systest:update:docker": "node scripts/docker-systest.mjs --update-snapshots",
     "test:coverage": "vitest run --coverage --exclude \"**/*.visual.test.tsx\"",
     "test:coverage:full": "vitest run --coverage",
     "test:coverage:docker": "node scripts/docker-test.mjs test:coverage:full",
@@ -28,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "7.0.1",
     "@trivago/prettier-plugin-sort-imports": "6.0.2",
     "@types/node": "24.13.5",

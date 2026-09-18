@@ -181,9 +181,16 @@
                 </configuration>
             </plugin>
 
+            <!-- The system tests talk to a running Polarion, so CI never runs them. See the
+                 system-tests profile below and the section in CLAUDE.md. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*SystemTest.java</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
 
             <plugin>
@@ -221,4 +228,33 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- The system tests, against a running Polarion:
+                 mvn -Psystem-tests test
+             The credentials are POLARION_USER and POLARION_PASSWORD, admin/admin by default: every
+             call goes to /internal, which takes a session rather than a token. They change the
+             stored menu order and put back what they found, and every save leaves a revision of it.
+             Without a Polarion answering, every one of them is skipped rather than failed. -->
+        <profile>
+            <id>system-tests</id>
+            <properties>
+                <skipJsTests>true</skipJsTests>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes combine.self="override"/>
+                            <includes>
+                                <include>**/*SystemTest.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

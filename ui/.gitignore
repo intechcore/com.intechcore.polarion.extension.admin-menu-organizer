@@ -24,3 +24,7 @@ test/__screenshots__/
 
 # coverage reports
 coverage/
+
+# playwright output of the system suite
+test-results/
+playwright-report/

@@ -28,7 +28,8 @@ mvn clean install -P local-install-into-polarion   # deploy into $POLARION_HOME
   from the parent) and the frontend suite through the parent's test-phase execution.
   `-DskipJsTests=true` skips only the JS tests. Frontend tests live in `ui/test/**` and run in
   **Vitest browser mode** (a real Chromium via Playwright), with an istanbul **90%** gate on all four
-  metrics. There are no Playwright e2e tests here.
+  metrics. There are no Playwright e2e tests in this suite: the only browser tests driven by
+  Playwright directly are the manual system tests in `ui/systest`, which CI never runs.
 - **Visual regression**: `ui/test/*.visual.test.tsx` capture `ui/test/expected/**`. They are
   pixel-locked to the pinned Playwright Docker image and skip themselves anywhere else
   (`__PIXEL_REFERENCES__`). Regenerate only with `npm run test:update:docker`, never by hand.
@@ -43,6 +44,49 @@ cp .env.local.template .env.local   # set VITE_BASE_URL and (optional) VITE_BEAR
 npm run dev                          # http://localhost:5173/?feature=menu-order (or ?feature=about)
 npx tsc --noEmit                     # type-check (vite build does NOT type-check)
 ```
+
+## System tests
+
+They run against a **running Polarion** and are **never part of CI**. Two suites, both manual:
+
+```bash
+# The REST side: the setting is stored where it belongs and refused where it does not.
+# The credentials are POLARION_USER and POLARION_PASSWORD, admin/admin by default. No token:
+# every call goes to /internal, which takes a session.
+mvn -Psystem-tests test
+
+# The menu the server draws, in the browser. The first needs no reference image.
+cd ui && npm run systest                 # the order, on this machine
+npm run systest:docker                   # the same, plus the screenshot, in the pinned image
+npm run systest:update:docker            # rewrites ui/systest/expected/
+```
+
+- `src/test/java/.../system/*SystemTest.java` is excluded by surefire by default; the `system-tests`
+  profile includes only those. Without a Polarion answering, every one of them **skips**.
+- `ui/systest/` drives a browser: it signs in, opens Administration, reads the entries the page
+  draws and asserts the order for both modes. That is the only place the product's promise can be
+  checked end to end, because the menu is drawn by GWT and no endpoint reports it. Whether a save
+  reached the live menu is therefore asserted there, not from the log: this repository does not
+  assert log output.
+- The order with both modes off is **read as a baseline**, not predicted: it follows identity hash
+  codes. The suite compares what it gets back after switching the modes off with that baseline.
+- **Polarion answers only requests whose Host header matches `base.url`** (`http://localhost`), and a
+  browser writes that header from the URL it opens. Inside the container the suite therefore reaches
+  Polarion through `systest/host-bridge.mjs`, a TCP forward from `localhost` on the port
+  `POLARION_URL` names: 80 by default, 443 under https.
+- **Both suites write one global setting**, the `Default` menu order, and each puts back what it
+  found. Run one suite at a time against an instance: overlapping runs restore each other's
+  temporary modes. The Java client uses the trust store of its JVM, so an https instance with a
+  certificate that JVM does not trust fails the run rather than skipping it.
+- The settings endpoints of generic need a **session**: under a token they answer 409, "Cannot find
+  request attributes in the request context". Both suites sign in with the login form, which carries
+  a CSRF token in a hidden field.
+- The suites change the stored menu order and put back what they found. A server that stored no
+  setting gets it removed again: the revisions endpoint is what tells "nothing stored" from "both
+  modes off", because the content endpoint answers the defaults for both. **What they cannot put
+  back is the revision history**: every save writes a revision of the global `Default` setting, and those
+  stay. A run leaves about ten of them. Run the suites against a development instance, not against a
+  server whose settings history anyone reads.
 
 ## CI
 
