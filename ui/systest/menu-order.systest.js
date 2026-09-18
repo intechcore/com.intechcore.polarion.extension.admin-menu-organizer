@@ -17,8 +17,14 @@ test.describe.configure({ mode: 'serial' });
 
 let storedModes;
 
+/** browser.newPage() takes no settings from the project, so the ones that matter are passed on. */
+const pageOptions = () => {
+  const { ignoreHTTPSErrors, viewport } = test.info().project.use;
+  return { ignoreHTTPSErrors, viewport };
+};
+
 test.beforeAll(async ({ browser }) => {
-  const page = await browser.newPage();
+  const page = await browser.newPage(pageOptions());
   await signIn(page);
   await openAdministration(page);
   storedModes = await readModes(page);
@@ -29,7 +35,7 @@ test.afterAll(async ({ browser }) => {
   // Nothing was read, so there is nothing to put back: a setup that failed before this was captured
   // must not have its failure buried under an invalid cleanup request.
   if (!storedModes) return;
-  const page = await browser.newPage();
+  const page = await browser.newPage(pageOptions());
   try {
     // The session is all this needs. Opening the administration could fail for the very reason the
     // run was investigating, and the live server would keep the modes of a test.

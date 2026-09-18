@@ -86,17 +86,31 @@ export async function readMenu(page) {
 }
 
 /** Expands a section so its pages are drawn, and answers the pages in the order they appear. */
+/**
+ * Clicks a section and waits for the menu to answer. GWT inserts the rows when it is ready, and on
+ * a slow Polarion a fixed pause would read the menu before that and count no pages at all.
+ */
+async function clickAndWaitForTheMenuToChange(page, section, before, timeout = 30000) {
+  await page.getByText(section, { exact: true }).first().click();
+  const deadline = Date.now() + timeout;
+  let after = await readMenu(page);
+  while (after.length === before.length && Date.now() < deadline) {
+    await page.waitForTimeout(500);
+    after = await readMenu(page);
+  }
+  if (after.length === before.length) {
+    throw new Error(`The menu did not change within ${timeout}ms after clicking "${section}"`);
+  }
+  return after;
+}
+
 export async function openSection(page, section) {
   let before = await readMenu(page);
-  await page.getByText(section, { exact: true }).first().click();
-  await page.waitForTimeout(3000);
-  let after = await readMenu(page);
+  let after = await clickAndWaitForTheMenuToChange(page, section, before);
   if (after.length < before.length) {
     // The session returned with the section already expanded, so that click collapsed it.
     before = after;
-    await page.getByText(section, { exact: true }).first().click();
-    await page.waitForTimeout(3000);
-    after = await readMenu(page);
+    after = await clickAndWaitForTheMenuToChange(page, section, before);
   }
   // The pages are the rows the click added, and they are drawn right below their section. Counting
   // them rather than matching their labels keeps a page that shares a label with another entry.

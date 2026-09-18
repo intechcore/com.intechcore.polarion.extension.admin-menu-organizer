@@ -231,9 +231,11 @@
 
     <profiles>
         <!-- The system tests, against a running Polarion:
-                 POLARION_TOKEN=... mvn -Psystem-tests test
-             They change the stored menu order and put back what they found. Without a Polarion
-             answering, every one of them is skipped rather than failed. -->
+                 mvn -Psystem-tests test
+             The credentials are POLARION_USER and POLARION_PASSWORD, admin/admin by default: every
+             call goes to /internal, which takes a session rather than a token. They change the
+             stored menu order and put back what they found, and every save leaves a revision of it.
+             Without a Polarion answering, every one of them is skipped rather than failed. -->
         <profile>
             <id>system-tests</id>
             <properties>
