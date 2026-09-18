@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
   applyModes,
-  collapseEverySection,
   extensionSections,
   openAdministration,
   openSection,
@@ -76,17 +75,21 @@ test('returns to the order Polarion builds when both modes are off', async ({ pa
 
   // The order Polarion built at startup, which is what switching the modes off has to return to.
   // It follows identity hash codes, so it is read rather than predicted, and it does not change
-  // while the server runs.
+  // while the server runs. Both halves of it are read: the sections, and the pages of this one.
+  // Reading the sections alone would let a page order that stays sorted pass as "off".
   await applyModes(page, { foldersAlphabetically: false, entriesInDeclarationOrder: false });
-  const baseline = extensionSections(await collapseEverySection(page));
+  const built = await openSection(page, SECTION);
+  const baseline = extensionSections(built.menu);
 
   await applyModes(page, { foldersAlphabetically: true, entriesInDeclarationOrder: true });
-  const sorted = extensionSections(await collapseEverySection(page));
+  const sorted = extensionSections((await openSection(page, SECTION)).menu);
   expect(sorted).toEqual(sortedCaseInsensitively(sorted));
 
   await applyModes(page, { foldersAlphabetically: false, entriesInDeclarationOrder: false });
 
-  expect(extensionSections(await collapseEverySection(page))).toEqual(baseline);
+  const off = await openSection(page, SECTION);
+  expect(extensionSections(off.menu)).toEqual(baseline);
+  expect(off.pages).toEqual(built.pages);
 });
 
 test('the section looks the way it is published', async ({ page }) => {
