@@ -97,12 +97,11 @@ test('the section looks the way it is published', async ({ page }) => {
   await signIn(page);
   await openAdministration(page);
   await applyModes(page, { foldersAlphabetically: true, entriesInDeclarationOrder: true });
-  await openSection(page, SECTION);
 
   // From the row of the section to the row of its last page: what the extension promises, and
-  // nothing of the other extensions installed on the instance.
-  // The rows of this section, by position: the same rows readMenu reports, so a page another
-  // extension labels the same way cannot put the frame somewhere else.
+  // nothing of the other extensions installed on the instance. The rows are taken by position, the
+  // same rows readMenu reports, so a page another extension labels the same way cannot put the
+  // frame somewhere else.
   const { pages, pagesAt } = await openSection(page, SECTION);
   expect(pages).toEqual(DECLARED_PAGES);
   const section = await rowRect(page, pagesAt - 1);
