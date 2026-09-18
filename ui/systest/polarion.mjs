@@ -120,13 +120,25 @@ export async function openSection(page, section) {
   return { menu: after, pages, pagesAt: at + 1 };
 }
 
+/**
+ * Polarion answers a call without a session with the login page and status 200, not with a redirect
+ * and not with 401. A status alone therefore proves nothing about a settings call, and this is what
+ * tells the two apart.
+ */
+async function rejectAPageInsteadOfTheSetting(response, what) {
+  if ((response.headers()['content-type'] ?? '').includes('text/html')) {
+    throw new Error(`${what} was answered with a page rather than the setting: there is no session`);
+  }
+  if (!response.ok() && response.status() !== 204) {
+    throw new Error(`${what} answered ${response.status()}: ${await response.text()}`);
+  }
+}
+
 export async function readModes(page) {
   const response = await page.request.get(`${BASE_URL}${SETTINGS}`);
-  if (!response.ok()) {
-    // Parsing an error body would answer "both modes off", and that answer would later be written
-    // back to the live server as if it were what it held before the run.
-    throw new Error(`Reading the modes answered ${response.status()}: ${await response.text()}`);
-  }
+  // Parsing an error body would answer "both modes off", and that answer would later be written
+  // back to the live server as if it were what it held before the run.
+  await rejectAPageInsteadOfTheSetting(response, 'Reading the modes');
   const content = await response.json();
   return {
     foldersAlphabetically: content.foldersAlphabetically === true,
@@ -140,8 +152,16 @@ export async function readModes(page) {
  */
 export async function saveModes(page, modes) {
   const response = await page.request.put(`${BASE_URL}${SETTINGS}`, { data: modes });
-  if (!response.ok() && response.status() !== 204) {
-    throw new Error(`Saving the modes answered ${response.status()}: ${await response.text()}`);
+  await rejectAPageInsteadOfTheSetting(response, 'Saving the modes');
+
+  // Read back, because a write this suite believed and the server dropped is exactly the failure
+  // that would leave a live Polarion carrying the modes of a test.
+  const stored = await readModes(page);
+  if (
+    stored.foldersAlphabetically !== modes.foldersAlphabetically ||
+    stored.entriesInDeclarationOrder !== modes.entriesInDeclarationOrder
+  ) {
+    throw new Error(`The modes were not stored: the server holds ${JSON.stringify(stored)}`);
   }
 }
 
