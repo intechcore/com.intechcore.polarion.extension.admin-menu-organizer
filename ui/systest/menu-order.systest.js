@@ -26,6 +26,9 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async ({ browser }) => {
+  // Nothing was read, so there is nothing to put back: a setup that failed before this was captured
+  // must not have its failure buried under an invalid cleanup request.
+  if (!storedModes) return;
   const page = await browser.newPage();
   await signIn(page);
   await openAdministration(page);
@@ -68,7 +71,9 @@ test('returns to the order Polarion builds when both modes are off', async ({ pa
 });
 
 test('the section looks the way it is published', async ({ page }) => {
-  test.skip(!process.env.PIXEL_REFERENCES, 'The reference is locked to the pinned Playwright image');
+  // The exact value, as vitest.config.ts checks it: an inherited PIXEL_REFERENCES=0 must not
+  // turn a pixel comparison on outside the pinned image.
+  test.skip(process.env.PIXEL_REFERENCES !== '1', 'The reference is locked to the pinned Playwright image');
 
   await signIn(page);
   await openAdministration(page);

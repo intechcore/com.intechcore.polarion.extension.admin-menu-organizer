@@ -10,6 +10,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const uiDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+// Defaults live in this process, not in the docker arguments, so they can be passed by name below.
+process.env.POLARION_USER ??= 'admin';
+process.env.POLARION_PASSWORD ??= 'admin';
 const extraArgs = process.argv.slice(2);
 
 let playwrightVersion;
@@ -26,7 +30,8 @@ const image = `mcr.microsoft.com/playwright:v${playwrightVersion}-noble`;
 // answers only requests whose Host header matches its base.url, and a browser writes that header
 // from the URL it opens. The bridge listens on the port that URL names, not always on 80.
 const polarionUrl = process.env.POLARION_URL || 'http://localhost';
-const bridgePort = new URL(polarionUrl).port || '80';
+const url = new URL(polarionUrl);
+const bridgePort = url.port || (url.protocol === 'https:' ? '443' : '80');
 
 const args = [
   'run',
@@ -39,11 +44,13 @@ const args = [
   '-e',
   `POLARION_URL=${polarionUrl}`,
   '-e',
-  `POLARION_USER=${process.env.POLARION_USER || 'admin'}`,
-  '-e',
-  `POLARION_PASSWORD=${process.env.POLARION_PASSWORD || 'admin'}`,
-  '-e',
   `BRIDGE_PORT=${bridgePort}`,
+  // The name alone: docker takes the value from this process, so the password never reaches argv,
+  // where the process list of the machine would show it.
+  '-e',
+  'POLARION_USER',
+  '-e',
+  'POLARION_PASSWORD',
   '-v',
   `${uiDir}:/work`,
   '-v',
@@ -61,8 +68,8 @@ const args = [
   ...extraArgs,
 ];
 
-// The command carries POLARION_PASSWORD and POLARION_TOKEN, and this line goes to a terminal or a
-// log. What is printed is the shape of the call, not the values.
+// The secrets are passed by name, so they are not in the command at all. This keeps any value that
+// is still written as NAME=value out of a terminal or a log, should one be added.
 const SECRETS = ['POLARION_PASSWORD', 'POLARION_TOKEN'];
 const redacted = args.map((arg) =>
   SECRETS.some((name) => arg.startsWith(`${name}=`)) ? `${arg.split('=')[0]}=***` : arg,

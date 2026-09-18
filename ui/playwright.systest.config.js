@@ -22,5 +22,10 @@ export default defineConfig({
     baseURL: process.env.POLARION_URL || 'http://localhost',
     viewport: { width: 1600, height: 2000 },
     ignoreHTTPSErrors: true,
+    // The same rasterization the visual suite pins in vitest.config.ts. The image alone does not
+    // settle text antialiasing, and without these two a rerun can differ from its own reference.
+    launchOptions: {
+      args: ['--disable-font-subpixel-positioning', '--disable-lcd-text'],
+    },
   },
 });

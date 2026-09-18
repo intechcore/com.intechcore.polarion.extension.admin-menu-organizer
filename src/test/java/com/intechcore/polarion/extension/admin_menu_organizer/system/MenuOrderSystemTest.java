@@ -117,14 +117,27 @@ class MenuOrderSystemTest {
         assertThat(defaults.path("entriesInDeclarationOrder").asBoolean()).isFalse();
     }
 
+    private int revisionCount() {
+        JsonNode revisions = polarion.json(SETTINGS + "/names/Default/revisions?scope=");
+        assertThat(revisions.isArray()).as("the revisions of the setting").isTrue();
+        return revisions.size();
+    }
+
+    /**
+     * Every save is kept, which is what the Revisions button of the page offers. Two saves of two
+     * different values, so a store that overwrote its history or dropped the newest value would show.
+     */
     @Test
     void keepsEveryRevisionOfTheSetting() {
+        int before = revisionCount();
+
         saveAndReadBack(true, false);
+        saveAndReadBack(false, true);
 
-        JsonNode revisions = polarion.json(SETTINGS + "/names/Default/revisions?scope=");
-
-        assertThat(revisions.isArray()).isTrue();
-        assertThat(revisions).as("a saved setting has at least one revision").isNotEmpty();
+        assertThat(revisionCount()).as("two saves, two more revisions").isGreaterThanOrEqualTo(before + 2);
+        JsonNode read = polarion.json(CONTENT);
+        assertThat(read.path("foldersAlphabetically").asBoolean()).isFalse();
+        assertThat(read.path("entriesInDeclarationOrder").asBoolean()).isTrue();
     }
 
 }

@@ -28,7 +28,8 @@ mvn clean install -P local-install-into-polarion   # deploy into $POLARION_HOME
   from the parent) and the frontend suite through the parent's test-phase execution.
   `-DskipJsTests=true` skips only the JS tests. Frontend tests live in `ui/test/**` and run in
   **Vitest browser mode** (a real Chromium via Playwright), with an istanbul **90%** gate on all four
-  metrics. There are no Playwright e2e tests here.
+  metrics. There are no Playwright e2e tests in this suite: the only browser tests driven by
+  Playwright directly are the manual system tests in `ui/systest`, which CI never runs.
 - **Visual regression**: `ui/test/*.visual.test.tsx` capture `ui/test/expected/**`. They are
   pixel-locked to the pinned Playwright Docker image and skip themselves anywhere else
   (`__PIXEL_REFERENCES__`). Regenerate only with `npm run test:update:docker`, never by hand.
