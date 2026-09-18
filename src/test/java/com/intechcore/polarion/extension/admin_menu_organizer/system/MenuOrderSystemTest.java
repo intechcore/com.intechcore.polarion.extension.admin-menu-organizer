@@ -1,6 +1,7 @@
 package com.intechcore.polarion.extension.admin_menu_organizer.system;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -41,7 +42,7 @@ class MenuOrderSystemTest {
         polarion.logIn();
 
         JsonNode stored = polarion.json(CONTENT);
-        storedModes = modes(stored.path("foldersAlphabetically").asBoolean(), stored.path("entriesInDeclarationOrder").asBoolean());
+        storedModes = modes(mode(stored, "foldersAlphabetically"), mode(stored, "entriesInDeclarationOrder"));
     }
 
     /**
@@ -56,8 +57,22 @@ class MenuOrderSystemTest {
         HttpResponse<String> restored = polarion.put(CONTENT, storedModes);
         assertThat(restored.statusCode()).as("restoring the stored modes: %s", restored.body()).isIn(200, 204);
         JsonNode read = polarion.json(CONTENT);
-        assertThat(modes(read.path("foldersAlphabetically").asBoolean(), read.path("entriesInDeclarationOrder").asBoolean()))
+        assertThat(modes(mode(read, "foldersAlphabetically"), mode(read, "entriesInDeclarationOrder")))
                 .as("the modes the server held before the run").isEqualTo(storedModes);
+    }
+
+
+    /**
+     * Reads one mode. An answer of the wrong shape, such as {@code {}} or a field that is not a
+     * boolean, would otherwise arrive here as false, and the run would remember "both modes off" as
+     * what the server held and write that back at the end.
+     */
+    private static boolean mode(@NotNull JsonNode content, @NotNull String field) {
+        JsonNode value = content.path(field);
+        if (!value.isBoolean()) {
+            throw new IllegalStateException("The setting holds no boolean '%s': %s".formatted(field, content));
+        }
+        return value.booleanValue();
     }
 
     private static String modes(boolean foldersAlphabetically, boolean entriesInDeclarationOrder) {
@@ -76,16 +91,16 @@ class MenuOrderSystemTest {
     @Test
     void storesBothModesAndReadsThemBack() {
         JsonNode read = saveAndReadBack(true, true);
-        assertThat(read.path("foldersAlphabetically").asBoolean()).isTrue();
-        assertThat(read.path("entriesInDeclarationOrder").asBoolean()).isTrue();
+        assertThat(mode(read, "foldersAlphabetically")).isTrue();
+        assertThat(mode(read, "entriesInDeclarationOrder")).isTrue();
 
         read = saveAndReadBack(false, true);
-        assertThat(read.path("foldersAlphabetically").asBoolean()).isFalse();
-        assertThat(read.path("entriesInDeclarationOrder").asBoolean()).isTrue();
+        assertThat(mode(read, "foldersAlphabetically")).isFalse();
+        assertThat(mode(read, "entriesInDeclarationOrder")).isTrue();
 
         read = saveAndReadBack(false, false);
-        assertThat(read.path("foldersAlphabetically").asBoolean()).isFalse();
-        assertThat(read.path("entriesInDeclarationOrder").asBoolean()).isFalse();
+        assertThat(mode(read, "foldersAlphabetically")).isFalse();
+        assertThat(mode(read, "entriesInDeclarationOrder")).isFalse();
     }
 
     /**
@@ -117,8 +132,8 @@ class MenuOrderSystemTest {
     void offersTheDefaultsWithBothModesOff() {
         JsonNode defaults = polarion.json(SETTINGS + "/default-content");
 
-        assertThat(defaults.path("foldersAlphabetically").asBoolean()).isFalse();
-        assertThat(defaults.path("entriesInDeclarationOrder").asBoolean()).isFalse();
+        assertThat(mode(defaults, "foldersAlphabetically")).isFalse();
+        assertThat(mode(defaults, "entriesInDeclarationOrder")).isFalse();
     }
 
     private int revisionCount() {
@@ -140,8 +155,8 @@ class MenuOrderSystemTest {
 
         assertThat(revisionCount()).as("two saves, two more revisions").isGreaterThanOrEqualTo(before + 2);
         JsonNode read = polarion.json(CONTENT);
-        assertThat(read.path("foldersAlphabetically").asBoolean()).isFalse();
-        assertThat(read.path("entriesInDeclarationOrder").asBoolean()).isTrue();
+        assertThat(mode(read, "foldersAlphabetically")).isFalse();
+        assertThat(mode(read, "entriesInDeclarationOrder")).isTrue();
     }
 
 }

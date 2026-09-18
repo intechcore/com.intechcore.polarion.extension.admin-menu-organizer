@@ -176,12 +176,14 @@ async function waitForTheMenu(page, predicate, what, timeout = 30000) {
  * wherever it was left, and an open section would otherwise put its pages among the sections.
  */
 export async function collapseEverySection(page) {
-  let menu = await readMenu(page);
+  // An empty menu is one that is not drawn yet, not one without open sections.
+  let menu = await waitForTheMenu(page, (rows) => rows.length > 0, 'appear');
   for (let guard = 0; guard < 50; guard++) {
     const open = menu.findIndex((entry) => entry.section && entry.open);
     if (open < 0) return menu;
     await clickExpander(page, open);
-    menu = await waitForTheMenu(page, (rows) => !rows[open]?.open, 'close a section');
+    // The row has to be there and closed: a row that vanished during a redraw is not an answer.
+    menu = await waitForTheMenu(page, (rows) => rows[open] !== undefined && !rows[open].open, 'close a section');
   }
   throw new Error('The menu still holds an open section after fifty clicks');
 }
@@ -192,13 +194,12 @@ export async function collapseEverySection(page) {
  * time cannot shift them.
  */
 export async function openSection(page, section) {
-  await collapseEverySection(page);
-  const menu = await readMenu(page);
+  const menu = await collapseEverySection(page);
   const at = menu.findIndex((entry) => entry.section && entry.label === section);
   if (at < 0) throw new Error(`No section "${section}" in the administration menu`);
 
   await clickExpander(page, at);
-  const opened = await waitForTheMenu(page, (rows) => rows[at]?.open, `open "${section}"`);
+  const opened = await waitForTheMenu(page, (rows) => rows[at] !== undefined && rows[at].open, `open "${section}"`);
 
   const pages = [];
   for (let i = at + 1; i < opened.length && !opened[i].section; i++) {
@@ -227,9 +228,16 @@ export async function readModes(page) {
   // back to the live server as if it were what it held before the run.
   await rejectAPageInsteadOfTheSetting(response, 'Reading the modes');
   const content = await response.json();
+  // An answer of the wrong shape, such as {} or a field that is not a boolean, would arrive here as
+  // "both modes off", and the run would remember that as what the server held.
+  for (const field of ['foldersAlphabetically', 'entriesInDeclarationOrder']) {
+    if (typeof content?.[field] !== 'boolean') {
+      throw new Error(`The setting holds no boolean "${field}": ${JSON.stringify(content)}`);
+    }
+  }
   return {
-    foldersAlphabetically: content.foldersAlphabetically === true,
-    entriesInDeclarationOrder: content.entriesInDeclarationOrder === true,
+    foldersAlphabetically: content.foldersAlphabetically,
+    entriesInDeclarationOrder: content.entriesInDeclarationOrder,
   };
 }
 

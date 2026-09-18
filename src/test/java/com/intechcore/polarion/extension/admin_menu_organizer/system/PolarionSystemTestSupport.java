@@ -56,10 +56,12 @@ final class PolarionSystemTestSupport {
 
     private static boolean answers() {
         try {
-            HttpResponse<Void> response = HttpClient.newHttpClient().send(
+            // Any answer means there is a Polarion at that address. One that fails with 500 is a
+            // broken server, and the tests have to say so rather than skip and report nothing.
+            HttpClient.newHttpClient().send(
                     HttpRequest.newBuilder(URI.create(BASE_URL + "/polarion/")).timeout(Duration.ofSeconds(10)).GET().build(),
                     HttpResponse.BodyHandlers.discarding());
-            return response.statusCode() < 500;
+            return true;
         } catch (IOException e) {
             return false;
         } catch (InterruptedException e) {
