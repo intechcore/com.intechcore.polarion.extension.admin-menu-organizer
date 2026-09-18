@@ -17,9 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The settings endpoints of the generic framework need a session. Under a token they answer 409,
  * "Cannot find request attributes in the request context", so this signs in with the login form.
  * <p>
- * Every save writes a revision of the global {@code Default} setting, and a revision cannot be
- * removed through the API. The modes are put back, the history is not: run this against a
- * development instance.
+ * Every save writes a revision of the global {@code Default} setting. The modes are put back, the
+ * revisions of a setting that stays are not: run this against a development instance.
  * <p>
  * The order the menu is drawn in is asserted by the Playwright suite in {@code ui/systest}, which
  * reads it from the page. What is asserted here is everything up to that point: the setting is
@@ -163,6 +162,26 @@ class MenuOrderSystemTest {
         JsonNode revisions = polarion.json(REVISIONS);
         assertThat(revisions.isArray()).as("the revisions of the setting").isTrue();
         return revisions.size();
+    }
+
+    /**
+     * Deleting the setting takes its revisions with it, which is what "the server stores nothing"
+     * looks like through the API: the content endpoint keeps answering the defaults, so the
+     * revisions are the only answer to whether anything is stored. Both suites read them to decide
+     * whether to put a setting back or to remove the one the run created.
+     */
+    @Test
+    void deletingTheSettingLeavesNoRevision() {
+        saveAndReadBack(true, true);
+        assertThat(revisionCount()).as("the setting this test just saved").isPositive();
+
+        HttpResponse<String> deleted = polarion.delete(SETTING);
+        assertThat(deleted.statusCode()).as("deleting the setting: %s", deleted.body()).isIn(200, 204);
+
+        assertThat(revisionCount()).as("the revisions of a setting that is gone").isZero();
+        JsonNode read = polarion.json(CONTENT);
+        assertThat(mode(read, "foldersAlphabetically")).isFalse();
+        assertThat(mode(read, "entriesInDeclarationOrder")).isFalse();
     }
 
     /**
