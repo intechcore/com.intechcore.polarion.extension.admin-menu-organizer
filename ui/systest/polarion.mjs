@@ -58,7 +58,17 @@ export async function openAdministration(page) {
   throw new Error('The administration did not open within two minutes');
 }
 
-/** Every entry of the administration menu, in the order the page draws them. */
+/**
+ * Every entry of the administration menu, in the order the page draws them.
+ *
+ * Polarion draws each entry as two rows, one inside the other, and the first image of the inner one
+ * is the tree column that says what the entry is: `T.gif` a page, `T+_lite` a collapsed section,
+ * `T-_lite` an expanded one. The last entry of a branch carries the same images spelled with `L`,
+ * the elbow of the tree. Reading that instead of the labels keeps two entries with the same label
+ * apart, which two extensions may well produce.
+ *
+ * Answers an empty list until the menu is there, so a caller can wait for it.
+ */
 export async function readMenu(page) {
   return page.evaluate(
     ([anchor, first]) => {
@@ -69,55 +79,132 @@ export async function readMenu(page) {
       const start = leafWith(anchor);
       if (!start) return [];
       // The smallest ancestor that holds the whole menu, which is the one that also holds the entry
-      // Polarion draws first. A count of descendants would depend on how many extensions happen to
-      // be installed, and would climb out of the menu into the page when the menu is small.
+      // Polarion draws first. Without that entry the menu is not drawn yet: climbing on would reach
+      // the document and take the page for the menu.
       let container = start;
       while (container.parentElement && !(container.textContent || '').includes(first)) {
         container = container.parentElement;
       }
-      // Every row, in the order it is drawn, and none of them dropped: two extensions may well
-      // contribute a page with the same label, and the extension orders entries, not labels.
-      return Array.from(container.querySelectorAll('*'))
-        .filter((element) => element.children.length === 0 && (element.textContent || '').trim())
-        .map((element) => (element.textContent || '').trim());
+      if (!(container.textContent || '').includes(first)) return [];
+
+      const treeImage = (row) => {
+        const image = row.querySelector('img');
+        return image ? (image.getAttribute('src') || '').split('/').pop().split('?')[0] : '';
+      };
+      const rows = Array.from(container.querySelectorAll('tr'))
+        .map((row) => ({ row, tree: treeImage(row), label: (row.innerText || '').trim().split('\n')[0].trim() }))
+        .filter((entry) => entry.label && /^[TL](\.gif|[+-]_lite\.svg)$/.test(entry.tree));
+      // One row per entry: the tables are nested, so a row carrying the tree column can hold
+      // another one that carries it too. The inner one is the entry.
+      return rows
+        .filter((entry) => !rows.some((other) => other !== entry && entry.row.contains(other.row)))
+        .map((entry) => ({
+          label: entry.label,
+          section: entry.tree.includes('_lite'),
+          open: entry.tree.includes('-_lite'),
+        }));
     },
     [ANCHOR, FIRST_ENTRY],
   );
 }
 
-/** Expands a section so its pages are drawn, and answers the pages in the order they appear. */
-/**
- * Clicks a section and waits for the menu to answer. GWT inserts the rows when it is ready, and on
- * a slow Polarion a fixed pause would read the menu before that and count no pages at all.
- */
-async function clickAndWaitForTheMenuToChange(page, section, before, timeout = 30000) {
-  await page.getByText(section, { exact: true }).first().click();
-  const deadline = Date.now() + timeout;
-  let after = await readMenu(page);
-  while (after.length === before.length && Date.now() < deadline) {
-    await page.waitForTimeout(500);
-    after = await readMenu(page);
-  }
-  if (after.length === before.length) {
-    throw new Error(`The menu did not change within ${timeout}ms after clicking "${section}"`);
-  }
-  return after;
+/** The labels of the sections the extensions contribute: everything below the Polarion built-ins. */
+export function extensionSections(menu) {
+  const anchor = menu.findIndex((entry) => entry.label === ANCHOR);
+  return menu
+    .slice(anchor + 1)
+    .filter((entry) => entry.section)
+    .map((entry) => entry.label);
 }
 
-export async function openSection(page, section) {
-  let before = await readMenu(page);
-  let after = await clickAndWaitForTheMenuToChange(page, section, before);
-  if (after.length < before.length) {
-    // The session returned with the section already expanded, so that click collapsed it.
-    before = after;
-    after = await clickAndWaitForTheMenuToChange(page, section, before);
+/**
+ * Clicks the expander of one row, found by what it is rather than by its label: a page carrying the
+ * same label has no expander and cannot be hit. Marks the image, clicks the marker and takes it off.
+ */
+async function clickExpander(page, index) {
+  const marked = await page.evaluate(
+    ([at, anchor, first]) => {
+      const leafWith = (text) =>
+        Array.from(document.querySelectorAll('*')).find(
+          (element) => element.children.length === 0 && (element.textContent || '').trim() === text,
+        );
+      let container = leafWith(anchor);
+      while (container && container.parentElement && !(container.textContent || '').includes(first)) {
+        container = container.parentElement;
+      }
+      if (!container) return false;
+      const treeImage = (row) => {
+        const image = row.querySelector('img');
+        return image ? (image.getAttribute('src') || '').split('/').pop().split('?')[0] : '';
+      };
+      const qualifying = Array.from(container.querySelectorAll('tr')).filter((row) => {
+        const tree = treeImage(row);
+        return (row.innerText || '').trim() && /^[TL](\.gif|[+-]_lite\.svg)$/.test(tree);
+      });
+      // The same one row per entry as readMenu keeps, so the indexes of the two agree.
+      const rows = qualifying.filter((row) => !qualifying.some((other) => other !== row && row.contains(other)));
+      const image = rows[at]?.querySelector('img');
+      if (!image) return false;
+      image.setAttribute('data-systest-expander', '');
+      return true;
+    },
+    [index, ANCHOR, FIRST_ENTRY],
+  );
+  if (!marked) throw new Error(`No row to expand at index ${index}`);
+  await page.click('[data-systest-expander]');
+  await page.evaluate(() =>
+    document
+      .querySelectorAll('[data-systest-expander]')
+      .forEach((image) => image.removeAttribute('data-systest-expander')),
+  );
+}
+
+/** Waits until the menu answers a click, because GWT inserts the rows when it is ready. */
+async function waitForTheMenu(page, predicate, what, timeout = 30000) {
+  const deadline = Date.now() + timeout;
+  let menu = await readMenu(page);
+  while (!predicate(menu) && Date.now() < deadline) {
+    await page.waitForTimeout(500);
+    menu = await readMenu(page);
   }
-  // The pages are the rows the click added, and they are drawn right below their section. Counting
-  // them rather than matching their labels keeps a page that shares a label with another entry.
-  const at = after.indexOf(section);
-  const added = after.length - before.length;
-  const pages = after.slice(at + 1, at + 1 + added);
-  return { menu: after, pages, pagesAt: at + 1 };
+  if (!predicate(menu)) throw new Error(`The menu did not ${what} within ${timeout}ms`);
+  return menu;
+}
+
+/**
+ * Closes every open section, so the menu is measured from a known state. A session returns to
+ * wherever it was left, and an open section would otherwise put its pages among the sections.
+ */
+export async function collapseEverySection(page) {
+  let menu = await readMenu(page);
+  for (let guard = 0; guard < 50; guard++) {
+    const open = menu.findIndex((entry) => entry.section && entry.open);
+    if (open < 0) return menu;
+    await clickExpander(page, open);
+    menu = await waitForTheMenu(page, (rows) => !rows[open]?.open, 'close a section');
+  }
+  throw new Error('The menu still holds an open section after fifty clicks');
+}
+
+/**
+ * Expands one section and answers its pages: the entries between it and the next section. The rows
+ * are taken from the menu itself rather than from a count, so another section closing at the same
+ * time cannot shift them.
+ */
+export async function openSection(page, section) {
+  await collapseEverySection(page);
+  const menu = await readMenu(page);
+  const at = menu.findIndex((entry) => entry.section && entry.label === section);
+  if (at < 0) throw new Error(`No section "${section}" in the administration menu`);
+
+  await clickExpander(page, at);
+  const opened = await waitForTheMenu(page, (rows) => rows[at]?.open, `open "${section}"`);
+
+  const pages = [];
+  for (let i = at + 1; i < opened.length && !opened[i].section; i++) {
+    pages.push(opened[i].label);
+  }
+  return { menu: opened, pages, pagesAt: at + 1 };
 }
 
 /**
@@ -170,4 +257,34 @@ export async function applyModes(page, modes) {
   await saveModes(page, modes);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await openAdministration(page);
+}
+
+/** The rectangle of one menu row, addressed the way readMenu addresses it: by position, not by label. */
+export async function rowRect(page, index) {
+  const rect = await page.evaluate(
+    ([at, anchor, first]) => {
+      const leafWith = (text) =>
+        Array.from(document.querySelectorAll('*')).find(
+          (element) => element.children.length === 0 && (element.textContent || '').trim() === text,
+        );
+      let container = leafWith(anchor);
+      while (container && container.parentElement && !(container.textContent || '').includes(first)) {
+        container = container.parentElement;
+      }
+      if (!container) return null;
+      const treeImage = (row) => {
+        const image = row.querySelector('img');
+        return image ? (image.getAttribute('src') || '').split('/').pop().split('?')[0] : '';
+      };
+      const qualifying = Array.from(container.querySelectorAll('tr')).filter(
+        (row) => (row.innerText || '').trim() && /^[TL](\.gif|[+-]_lite\.svg)$/.test(treeImage(row)),
+      );
+      const rows = qualifying.filter((row) => !qualifying.some((other) => other !== row && row.contains(other)));
+      const box = rows[at]?.getBoundingClientRect();
+      return box ? { top: box.top, left: box.left, width: box.width, bottom: box.bottom } : null;
+    },
+    [index, ANCHOR, FIRST_ENTRY],
+  );
+  if (!rect) throw new Error(`No menu row at index ${index}`);
+  return rect;
 }
