@@ -24,8 +24,9 @@ const image = `mcr.microsoft.com/playwright:v${playwrightVersion}-noble`;
 
 // Inside the container Polarion is reached as localhost, through systest/host-bridge.mjs. It
 // answers only requests whose Host header matches its base.url, and a browser writes that header
-// from the URL it opens.
+// from the URL it opens. The bridge listens on the port that URL names, not always on 80.
 const polarionUrl = process.env.POLARION_URL || 'http://localhost';
+const bridgePort = new URL(polarionUrl).port || '80';
 
 const args = [
   'run',
@@ -41,11 +42,8 @@ const args = [
   `POLARION_USER=${process.env.POLARION_USER || 'admin'}`,
   '-e',
   `POLARION_PASSWORD=${process.env.POLARION_PASSWORD || 'admin'}`,
-  // Preparing the work records goes through Polarion's REST API, which takes a token and nothing else.
   '-e',
-  `POLARION_TOKEN=${process.env.POLARION_TOKEN || ''}`,
-  '-e',
-  `POLARION_SYSTEST_PROJECT=${process.env.POLARION_SYSTEST_PROJECT || 'elibrary'}`,
+  `BRIDGE_PORT=${bridgePort}`,
   '-v',
   `${uiDir}:/work`,
   '-v',
@@ -55,8 +53,12 @@ const args = [
   image,
   'bash',
   '-c',
-  // The bridge runs in the background for as long as the suite does.
-  `npm ci && (node systest/host-bridge.mjs &) && sleep 2 && npx playwright test -c playwright.systest.config.js ${extraArgs.join(' ')}`,
+  // The bridge runs in the background for as long as the suite does. The extra arguments are passed
+  // as positional parameters: joined into the command they would lose their boundaries, so
+  // --grep "two words" would arrive as two arguments.
+  'npm ci && (node systest/host-bridge.mjs &) && sleep 2 && npx playwright test -c playwright.systest.config.js "$@"',
+  'bash',
+  ...extraArgs,
 ];
 
 // The command carries POLARION_PASSWORD and POLARION_TOKEN, and this line goes to a terminal or a

@@ -38,10 +38,12 @@ test('sorts the sections of the extensions and keeps the pages of one in declara
   await openAdministration(page);
   await applyModes(page, { foldersAlphabetically: true, entriesInDeclarationOrder: true });
 
-  const { menu, pages } = await openSection(page, SECTION);
+  const { menu, pages, pagesAt } = await openSection(page, SECTION);
 
   expect(menu).toContain(SECTION);
-  const sections = extensionSections(menu).filter((entry) => !pages.includes(entry));
+  // The pages are removed by position, not by label: a page and a section may share one.
+  const withoutPages = menu.filter((_, index) => index < pagesAt || index >= pagesAt + pages.length);
+  const sections = extensionSections(withoutPages);
   expect(sections).toEqual(sortedCaseInsensitively(sections));
   expect(pages).toEqual(DECLARED_PAGES);
 });
