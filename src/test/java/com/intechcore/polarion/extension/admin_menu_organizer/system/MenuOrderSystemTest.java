@@ -34,6 +34,12 @@ class MenuOrderSystemTest {
     private static final String CONTENT = SETTINGS + "/names/Default/content?scope=";
 
     private final PolarionSystemTestSupport polarion = new PolarionSystemTestSupport();
+
+    /**
+     * The modes of the server as the run found them. They are one global setting, which the browser
+     * suite writes too: run one suite at a time against an instance, or one cleanup puts back what
+     * the other one was using.
+     */
     private String storedModes;
 
     @BeforeAll

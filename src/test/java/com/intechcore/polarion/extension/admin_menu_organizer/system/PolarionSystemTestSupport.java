@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.net.ssl.SSLException;
+
 import java.io.IOException;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -62,6 +64,13 @@ final class PolarionSystemTestSupport {
                     HttpRequest.newBuilder(URI.create(BASE_URL + "/polarion/")).timeout(Duration.ofSeconds(10)).GET().build(),
                     HttpResponse.BodyHandlers.discarding());
             return true;
+        } catch (SSLException e) {
+            // A certificate this JVM does not trust is a server that answers. Skipping here would
+            // report a green run of a suite that made no call. The browser suite accepts such a
+            // certificate; this client does not, and it says so.
+            throw new IllegalStateException(
+                    "Polarion at %s answers, but its certificate is not trusted: %s. Import it into the trust store of this JVM."
+                            .formatted(BASE_URL, e.getMessage()), e);
         } catch (IOException e) {
             return false;
         } catch (InterruptedException e) {

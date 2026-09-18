@@ -21,6 +21,9 @@ const sortedCaseInsensitively = (names) => [...names].sort(collator.compare);
 
 test.describe.configure({ mode: 'serial' });
 
+// The modes of the server as the run found them. They are one global setting, which the Java suite
+// writes too: run one suite at a time against an instance, or one cleanup puts back what the other
+// one was using.
 let storedModes;
 
 /** browser.newPage() takes no settings from the project, so the ones that matter are passed on. */

@@ -72,7 +72,12 @@ npm run systest:update:docker            # rewrites ui/systest/expected/
   codes. The suite compares what it gets back after switching the modes off with that baseline.
 - **Polarion answers only requests whose Host header matches `base.url`** (`http://localhost`), and a
   browser writes that header from the URL it opens. Inside the container the suite therefore reaches
-  Polarion through `systest/host-bridge.mjs`, a TCP forward from `localhost:80`.
+  Polarion through `systest/host-bridge.mjs`, a TCP forward from `localhost` on the port
+  `POLARION_URL` names: 80 by default, 443 under https.
+- **Both suites write one global setting**, the `Default` menu order, and each puts back what it
+  found. Run one suite at a time against an instance: overlapping runs restore each other's
+  temporary modes. The Java client uses the trust store of its JVM, so an https instance with a
+  certificate that JVM does not trust fails the run rather than skipping it.
 - The settings endpoints of generic need a **session**: under a token they answer 409, "Cannot find
   request attributes in the request context". Both suites sign in with the login form, which carries
   a CSRF token in a hidden field.

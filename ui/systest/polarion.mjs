@@ -199,7 +199,13 @@ export async function openSection(page, section) {
   if (at < 0) throw new Error(`No section "${section}" in the administration menu`);
 
   await clickExpander(page, at);
-  const opened = await waitForTheMenu(page, (rows) => rows[at] !== undefined && rows[at].open, `open "${section}"`);
+  // The open marker alone is not the answer: GWT sets it before it inserts the pages, and the row
+  // after the section is what proves they are there. Every section of the menu carries pages.
+  const opened = await waitForTheMenu(
+    page,
+    (rows) => rows[at] !== undefined && rows[at].open && rows[at + 1] !== undefined && !rows[at + 1].section,
+    `open "${section}"`,
+  );
 
   const pages = [];
   for (let i = at + 1; i < opened.length && !opened[i].section; i++) {
