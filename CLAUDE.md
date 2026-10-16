@@ -90,21 +90,30 @@ npm run systest:update:docker            # rewrites ui/systest/expected/
 
 ## CI
 
-GitHub Actions runs five workflows:
+GitHub Actions runs four workflows:
 
-- `ci.yml`: the `build` job runs `mvn -s .mvn/settings.xml clean verify` with the Java and UI tests
-  and the Polarion compatibility check. It fails when the build changes `docs/openapi.json`. The
-  `pre-commit` job runs all hooks, except `no-commit-to-branch`, the git identity check and the
-  Docker UI tests.
-- `actionlint.yml`: lints the workflows when they change.
-- `pr.yml`: checks the pull request title and its commits with commitizen.
+- `ci.yml`, on every pull request and on `main`:
+  - `lint`: actionlint and zizmor audit the workflows.
+  - `build`: `mvn -s .mvn/settings.xml clean verify` with the Java and UI tests and the Polarion
+    compatibility check, then the SonarCloud analysis. It fails when the build changes
+    `docs/openapi.json`. The analysis is skipped while `SONAR_TOKEN` is missing.
+  - `pre-commit`: all hooks, except `no-commit-to-branch`, the git identity check and the Docker UI
+    tests.
+  - `conventional-commits`: commitizen checks the pull request title and its commits.
+- `scorecard.yml`: OpenSSF Scorecard, weekly and on `main`. Findings go to code scanning.
 - `bump-version.yml`: dispatched by hand with `patch`, `minor` or `major`. It sets the release
-  version in the pom, commits it, tags it `v<version>` and pushes. It checks out with `PAT_TOKEN`
+  version in the pom, cuts the `## [Unreleased]` section of `CHANGELOG.md` into the release, commits
+  it, tags it `v<version>` and pushes to `main`. It pushes with `PAT_TOKEN` through `GIT_ASKPASS`
   on purpose: a tag pushed with the default `GITHUB_TOKEN` starts no further workflow, so
   `release.yml` would never see it.
-- `release.yml`: runs on a `v*` tag. It builds and tests the tag, then attaches the jars to a
-  GitHub release. It stops at `verify` - nothing is published to a Maven repository yet. A second
-  job returns `main` to the next `-SNAPSHOT`.
+- `release.yml`: runs on a `v*` tag. It refuses a release that exists already, reads the notes from
+  `CHANGELOG.md`, builds and tests the tag, attests the jars and creates the GitHub release with
+  `gh release create` in one call. Releases are immutable. It stops at `verify` - nothing is
+  published to a Maven repository yet. A second job returns `main` to the next `-SNAPSHOT`.
+
+pre-commit and commitizen are installed from `.github/requirements/*.txt`, pinned by hash. After a
+version change in the `.in` file, recompile with `uv pip compile --generate-hashes --universal
+--python-version=3.14 <in> --output-file=<txt>`. Renovate does that itself.
 
 The Polarion artifacts come from the Intechcore Nexus through the repository secrets `NEXUS_URL`,
 `NEXUS_USERNAME` and `NEXUS_PASSWORD`. `.mvn/settings.xml` declares Central first, so Nexus only
