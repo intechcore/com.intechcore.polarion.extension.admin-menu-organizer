@@ -1,36 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "github>intechcore/renovate-config"
   ],
-  "dependencyDashboard": true,
-  "automerge": true,
-  "automergeType": "pr",
-  "platformAutomerge": true,
+  "pinDigests": false,
   "pre-commit": {
     "enabled": true
   },
   "packageRules": [
     {
-      "description": "Major updates go straight to a pull request instead of waiting on the dependency dashboard.",
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "dependencyDashboardApproval": false
-    },
-    {
-      "description": "Digest pinning belongs to GitHub Actions, where every workflow here already pins by digest with the version in a trailing comment. Applied globally it also reaches the pre-commit manager, which pins hook revisions to commit SHAs; that update fails and shows up as 'Error updating branch: update failure'.",
+      "description": "Digest pinning belongs to GitHub Actions, where every workflow here already pins by digest with the version in a trailing comment. Applied globally it also reaches the pre-commit manager, which pins hook revisions to commit SHAs; that update fails and shows up as 'Error updating branch: update failure'. The zizmor version of zizmor-action is left out: the action accepts only a plain X.Y.Z, see the shared preset.",
       "matchManagers": [
         "github-actions"
       ],
-      "pinDigests": true
-    },
-    {
-      "description": "The JDK in the workflows follows Polarion, not the newest release: Polarion 2606 runs on Java 21 and the generic parent compiles for 21. Moving to another JDK is a deliberate decision, not a dependency update, and with automerge on it would otherwise land on its own.",
       "matchDepNames": [
-        "java-jdk"
+        "!ghcr.io/zizmorcore/zizmor"
       ],
-      "enabled": false
+      "pinDigests": true
     },
     {
       "description": "The committed reference screenshots are pixel-locked to the Playwright Docker image, and ui/scripts/docker-test.mjs derives that image tag from the installed playwright package. Vitest, its browser provider and playwright therefore belong in one pull request, which needs regenerated references (npm run test:update:docker) before it can be green.",
@@ -56,5 +42,9 @@
       ],
       "automerge": false
     }
-  ]
+  ],
+  "lockFileMaintenance": {
+    "description": "Refreshes the transitive packages of ui/package-lock.json, or they stay pinned to vulnerable versions.",
+    "enabled": true
+  }
 }
