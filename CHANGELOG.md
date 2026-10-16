@@ -11,7 +11,9 @@ Releases before 0.1.3 are listed on the
 
 ## [0.1.4] - 2026-10-16
 
-- Maintenance release: dependency and CI updates.
+### Changed
+- Releases are published to Maven Central.
+- GitHub releases carry the pom as well.
 
 ## [0.1.3] - 2026-10-16
 
@@ -23,6 +25,5 @@ Releases before 0.1.3 are listed on the
 - The extension builds on `ch.sbb.polarion.extension.generic` 16.3.0.
 - The repository is public, with a security policy, contribution guidelines and this changelog.
 - The project holds the OpenSSF Best Practices passing badge.
-- Releases are published to Maven Central.
-- GitHub releases carry the pom and a signed build provenance bundle (`*.intoto.jsonl`). Their
-  notes come from this changelog.
+- GitHub releases carry a signed build provenance bundle (`*.intoto.jsonl`). Their notes come
+  from this changelog.
