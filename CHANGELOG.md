@@ -9,6 +9,8 @@ Releases before 0.1.3 are listed on the
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-16
+
 ### Added
 - A save of the menu order that does not reach the menu is reported. The Menu Order page shows the
   message, and the saved options still apply at the next start of Polarion.
