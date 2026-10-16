@@ -9,6 +9,10 @@ Releases before 0.1.3 are listed on the
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-16
+
+- Maintenance release: dependency and CI updates.
+
 ## [0.1.3] - 2026-10-16
 
 ### Added
