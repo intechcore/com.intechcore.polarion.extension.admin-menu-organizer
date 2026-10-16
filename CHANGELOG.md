@@ -16,5 +16,6 @@ Releases before 0.1.3 are listed on the
 ### Changed
 - The extension builds on `ch.sbb.polarion.extension.generic` 16.2.0.
 - The repository is public, with a security policy, contribution guidelines and this changelog.
+- The project holds the OpenSSF Best Practices passing badge.
 - GitHub releases carry a signed build provenance bundle (`*.intoto.jsonl`). Their notes come
   from this changelog.
