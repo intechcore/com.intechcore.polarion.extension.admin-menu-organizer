@@ -63,6 +63,10 @@
 
         <markdown2html-maven-plugin.failOnError>true</markdown2html-maven-plugin.failOnError>
         <markdown2html-maven-plugin.disclaimer.outputFile>${markdown2html-maven-plugin.extensionContextAdminHtml}/disclaimer.html</markdown2html-maven-plugin.disclaimer.outputFile>
+
+        <!-- SonarCloud. The parent points projectKey and organization at SBB, so both are set here. -->
+        <sonar.projectKey>intechcore_com.intechcore.polarion.extension.admin-menu-organizer</sonar.projectKey>
+        <sonar.organization>intechcore</sonar.organization>
     </properties>
 
     <dependencies>
@@ -105,9 +109,22 @@
                 <artifactId>maven-clean-plugin</artifactId>
             </plugin>
 
+            <!-- README.md is converted to the About page shown inside Polarion. The parent already
+                 drops the SonarCloud badges from it; the other badge kinds are dropped here. A
+                 badge on that page would be a broken external image behind Polarion's CSP. Maven
+                 replaces the whole list, so the parent's entry is restated. -->
             <plugin>
                 <groupId>ch.sbb.maven.plugins</groupId>
                 <artifactId>markdown2html-maven-plugin</artifactId>
+                <configuration>
+                    <removeLinesWithStrings>
+                        <removeLinesWithString>https://sonarcloud.io/api/project_badges/</removeLinesWithString>
+                        <removeLinesWithString>https://img.shields.io/</removeLinesWithString>
+                        <removeLinesWithString>/badge.svg</removeLinesWithString>
+                        <removeLinesWithString>https://api.scorecard.dev/</removeLinesWithString>
+                        <removeLinesWithString>https://www.bestpractices.dev/</removeLinesWithString>
+                    </removeLinesWithStrings>
+                </configuration>
                 <executions>
                     <execution>
                         <id>disclaimer.md-to-disclaimer.html</id>

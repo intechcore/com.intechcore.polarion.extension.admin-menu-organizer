@@ -1,5 +1,14 @@
 # Admin Menu Organizer for Polarion ALM
 
+[![CI](https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/actions/workflows/ci.yml/badge.svg)](https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/badge)](https://scorecard.dev/viewer/?uri=github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer)
+[![Release](https://img.shields.io/github/v/release/intechcore/com.intechcore.polarion.extension.admin-menu-organizer)](https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/releases)
+[![Java 21+](https://img.shields.io/badge/Java-21%2B-blue.svg)](https://openjdk.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=intechcore_com.intechcore.polarion.extension.admin-menu-organizer&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=intechcore_com.intechcore.polarion.extension.admin-menu-organizer)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=intechcore_com.intechcore.polarion.extension.admin-menu-organizer&metric=coverage)](https://sonarcloud.io/summary/new_code?id=intechcore_com.intechcore.polarion.extension.admin-menu-organizer)
+
 > [!IMPORTANT]
 > Read the [Disclaimer](DISCLAIMER.md) before you use this extension. Use it in production at your own risk.
 
@@ -45,3 +54,18 @@ In a Polarion cluster, saving applies the order only on the node that handles th
 ## REST API
 
 This extension provides a REST API. Its OpenAPI specification can be obtained [here](docs/openapi.json).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately, see [SECURITY.md](SECURITY.md).
+
+## Disclaimer
+
+This extension is provided "as is", without warranty of any kind, as the [LICENSE](LICENSE) states.
+Use it at your own risk. Intechcore GmbH is not liable for damage from its use, as far as the law
+allows. It is published free of charge, outside of any commercial offering, with no obligation to
+support it. Security reports are welcome, see [SECURITY.md](SECURITY.md).
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
