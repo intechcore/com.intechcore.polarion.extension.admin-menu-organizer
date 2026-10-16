@@ -63,6 +63,10 @@
 
         <markdown2html-maven-plugin.failOnError>true</markdown2html-maven-plugin.failOnError>
         <markdown2html-maven-plugin.disclaimer.outputFile>${markdown2html-maven-plugin.extensionContextAdminHtml}/disclaimer.html</markdown2html-maven-plugin.disclaimer.outputFile>
+
+        <!-- SonarCloud. The parent points projectKey and organization at SBB, so both are set here. -->
+        <sonar.projectKey>intechcore_com.intechcore.polarion.extension.admin-menu-organizer</sonar.projectKey>
+        <sonar.organization>intechcore</sonar.organization>
     </properties>
 
     <dependencies>
