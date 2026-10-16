@@ -4,6 +4,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/badge)](https://scorecard.dev/viewer/?uri=github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15539/badge)](https://www.bestpractices.dev/projects/15539)
 [![Release](https://img.shields.io/github/v/release/intechcore/com.intechcore.polarion.extension.admin-menu-organizer)](https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/releases)
+[![Maven Central](https://img.shields.io/maven-central/v/com.intechcore.polarion.extensions/com.intechcore.polarion.extension.admin-menu-organizer)](https://central.sonatype.com/artifact/com.intechcore.polarion.extensions/com.intechcore.polarion.extension.admin-menu-organizer)
 [![Java 21+](https://img.shields.io/badge/java-21+-blue.svg)](https://openjdk.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
@@ -38,6 +39,10 @@ The build also compiles the React user interface in `ui/` and bundles it into th
 
 ## Installation to Polarion
 
+The released jar is published to
+[Maven Central](https://central.sonatype.com/artifact/com.intechcore.polarion.extensions/com.intechcore.polarion.extension.admin-menu-organizer)
+and attached to every [GitHub release](https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/releases).
+
 To install this extension, copy `com.intechcore.polarion.extension.admin-menu-organizer-<version>.jar` to `<polarion_home>/polarion/extensions/com.intechcore.polarion.extension.admin-menu-organizer/eclipse/plugins`. The Maven build can do it for you:
 
 ```bash
@@ -47,6 +52,9 @@ mvn clean install -P local-install-into-polarion
 The `POLARION_HOME` environment variable must point to the Polarion installation folder.
 
 Changes take effect only after a restart of Polarion.
+
+GitHub releases from 0.1.3 on carry a signed provenance bundle. Verify a downloaded jar with
+`gh attestation verify <file> --repo intechcore/com.intechcore.polarion.extension.admin-menu-organizer`.
 
 ## Polarion configuration
 

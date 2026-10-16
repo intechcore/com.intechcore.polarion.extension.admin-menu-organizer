@@ -107,9 +107,12 @@ GitHub Actions runs four workflows:
   on purpose: a tag pushed with the default `GITHUB_TOKEN` starts no further workflow, so
   `release.yml` would never see it.
 - `release.yml`: runs on a `v*` tag. It refuses a release that exists already, reads the notes from
-  `CHANGELOG.md`, builds and tests the tag, attests the jars and creates the GitHub release with
-  `gh release create` in one call. Releases are immutable. It stops at `verify` - nothing is
-  published to a Maven repository yet. A second job returns `main` to the next `-SNAPSHOT`.
+  `CHANGELOG.md`, then runs `deploy` with the generic profiles `gpg-sign,central-publishing`: the
+  tests run and the signed bundle goes to Maven Central. It attests the jars and the pom, and creates
+  the GitHub release with `gh release create` in one call. Releases are immutable. A second job
+  returns `main` to the next `-SNAPSHOT`. The Central credentials and the GPG key are the org
+  secrets `SONATYPE_USERNAME`, `SONATYPE_TOKEN`, `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE`, granted to
+  this repository by name. `.mvn/settings.xml` maps them to the server `sonatype-central`.
 
 pre-commit and commitizen are installed from `.github/requirements/*.txt`, pinned by hash. After a
 version change in the `.in` file, recompile with `uv pip compile --generate-hashes --universal
