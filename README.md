@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/actions/workflows/ci.yml/badge.svg)](https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/badge)](https://scorecard.dev/viewer/?uri=github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15539/badge)](https://www.bestpractices.dev/projects/15539)
 [![Release](https://img.shields.io/github/v/release/intechcore/com.intechcore.polarion.extension.admin-menu-organizer)](https://github.com/intechcore/com.intechcore.polarion.extension.admin-menu-organizer/releases)
 [![Java 21+](https://img.shields.io/badge/Java-21%2B-blue.svg)](https://openjdk.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
