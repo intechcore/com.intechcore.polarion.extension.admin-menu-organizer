@@ -41,6 +41,16 @@
         "ch.sbb.polarion.extensions:ch.sbb.polarion.extension.generic"
       ],
       "automerge": false
+    },
+    {
+      "description": "TypeScript majors wait for typescript-eslint: 8.71 accepts typescript >=4.8.4 <6.1.0, and npm then fails to resolve the peer dependency. Approve the update on the Dependency Dashboard once typescript-eslint allows the new major.",
+      "matchPackageNames": [
+        "typescript"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
     }
   ],
   "lockFileMaintenance": {
