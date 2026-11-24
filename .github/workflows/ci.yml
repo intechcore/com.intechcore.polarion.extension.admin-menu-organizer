@@ -29,11 +29,11 @@ jobs:
       # Security audit of the workflows, for example template injection or credentials left in
       # the checkout. Informational findings do not fail.
       - name: Audit the workflows with zizmor
-        uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd  # v0.8.1
+        uses: zizmorcore/zizmor-action@1b4550e929643b8b26a62303c6bd64814271a4f1  # v0.9.2
         with:
           advanced-security: false
           min-severity: low
-          version: 1.32.0
+          version: 1.33.1
   build:
     # A pull request from a fork gets no secrets, so Nexus refuses the Polarion artifacts.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
