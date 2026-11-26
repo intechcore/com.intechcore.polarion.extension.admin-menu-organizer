@@ -19,7 +19,7 @@
       "pinDigests": true
     },
     {
-      "description": "The committed reference screenshots are pixel-locked to the Playwright Docker image, and ui/scripts/docker-test.mjs derives that image tag from the installed playwright package. Vitest, its browser provider and playwright therefore belong in one pull request, which needs regenerated references (npm run test:update:docker) before it can be green.",
+      "description": "The committed reference screenshots are pixel-locked to the Playwright Docker image, and ui/scripts/docker-test.mjs derives that image tag from the installed playwright package. Vitest, its browser provider and playwright therefore belong in one pull request, which needs regenerated references (npm run test:update:docker) before it can be green. Automerge waits for the checks, so such a pull request stays open until the new references are committed.",
       "matchManagers": [
         "npm"
       ],
@@ -29,8 +29,7 @@
         "vitest",
         "@vitest/**"
       ],
-      "groupName": "vitest and playwright",
-      "automerge": false
+      "groupName": "vitest and playwright"
     },
     {
       "description": "The generic parent carries the Polarion platform baseline. It travels alone and is reviewed by a person.",
